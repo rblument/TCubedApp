@@ -1,0 +1,13 @@
+# Ignore Maven compilation output
+/target/
+
+# Ignore NetBeans local environment configuration cache files
+/.nb-env
+/nbproject/
+/nb-configuration.xml
+*actions.xml
+
+# Ignore OS-specific metadata junk
+.DS_Store
+Thumbs.db
+

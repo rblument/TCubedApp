@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>edu.regis</groupId>
+    <artifactId>TCubedApp</artifactId>
+    <version>1.0-SNAPSHOT</version>
+ 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.0</version>
+    <!-- Forces Maven to search the central internet repository instead of looking upstairs -->
+    <relativePath/> 
+  </parent> 
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Directory avoids locking problems on OneDrive Cloud file systems
+         during a Clean and Build since attempts to delete the 'target'
+         directory can fail due to OneDrive holding a lock on the directory.
+         Ask Rick, if you're not sure.                                        
+    -->
+    <directory>C:/NetBeansBuilds/${project.artifactId}/target</directory>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+        <!-- Explicitly declares the exact entry point class for Maven -->
+        <mainClass>edu.regis.shatuw.App</mainClass>
+      </configuration>
+      </plugin>
+     
+    </plugins>
+  </build>
+</project>
