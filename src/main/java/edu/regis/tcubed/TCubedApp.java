@@ -11,6 +11,7 @@
  *   or conditions of any kind, either expressed or implied.
  */
 
+// Thomas Wintenburg - Initial Sprint
 // Oscar Castillo - Initial Sprint Setup
 
 package edu.regis.tcubed;
