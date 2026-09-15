@@ -32,23 +32,32 @@
     </dependency>
   </dependencies>
 
+  <!-- Profiles dynamically adjust settings based on the developer's Operating System -->
+  <profiles>
+    <profile>
+      <id>windows-onedrive-fix</id>
+      <activation>
+        <os>
+          <family>windows</family>
+        </os>
+      </activation>
+      <build>
+        <!-- This directory avoids locking problems on OneDrive Cloud file systems for Windows users -->
+        <directory>C:/NetBeansBuilds/${project.artifactId}/target</directory>
+      </build>
+    </profile>
+  </profiles>
+
   <build>
-    <!-- Directory avoids locking problems on OneDrive Cloud file systems
-         during a Clean and Build since attempts to delete the 'target'
-         directory can fail due to OneDrive holding a lock on the directory.
-         Ask Rick, if you're not sure.                                        
-    -->
-    <directory>C:/NetBeansBuilds/${project.artifactId}/target</directory>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
         <!-- Explicitly declares the exact entry point class for Maven -->
-        <mainClass>edu.regis.shatuw.App</mainClass>
+        <mainClass>edu.regis.tcubed.TCubedApp</mainClass>
       </configuration>
       </plugin>
-     
     </plugins>
   </build>
 </project>
