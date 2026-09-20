@@ -66,7 +66,7 @@ class AuthController {
 
                 if (rs.next()) {
                     model.addAttribute("name", rs.getString("userId"));
-                    return "dashboard"; // Renders dashboard.html
+                    return "redirect:/projects"; // Redirects towards projects screen
                 }
             }
         } catch (SQLException e) {
@@ -75,6 +75,17 @@ class AuthController {
         }
         model.addAttribute("error", "Invalid Credentials!");
         return "login";
+    }
+    
+    @GetMapping("/projects")
+    public String showProjects() {
+        return "projects";
+    }
+
+    @GetMapping("/dashboard")
+    public String showDashboard(@RequestParam(name="project", required=false) String project, Model model) {
+        model.addAttribute("projectName", project != null ? project : "Default Project");
+        return "dashboard";
     }
 }
 

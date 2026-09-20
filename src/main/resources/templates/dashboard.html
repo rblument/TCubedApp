@@ -1,11 +1,35 @@
 <!DOCTYPE html>
-
-<html lang="en">
-    
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Board - <span th:text="${projectName}"></span></title>
+    <style>
+        .board { display: flex; gap: 20px; padding: 20px; }
+        .container { background: #f4f5f7; width: 250px; padding: 10px; border-radius: 5px; min-height: 400px; }
+        .task { background: white; padding: 10px; margin-bottom: 10px; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); cursor: grab; }
+        .trash { margin-top: 20px; padding: 20px; background: #ffe4e6; border: 2px dashed #e11d48; text-align: center; }
+    </style>
+</head>
 <body>
-  <!-- Standard data-th-text replaces th:text -->
-  <h1>Welcome to the TCubed, <span data-th-text="${name}">User</span>!</h1>
-  <p>Student contributors can add interactive features or styles to this page via GitHub.</p>
-  <a href="/">Log Out</a>
+    <h2 th:text="${projectName} + ' Board'">Project Board</h2>
+    
+    <div class="board">
+        <div class="container">
+            <h3>To-Do</h3>
+            <div class="task" draggable="true">TP-101: Draft ER Diagram</div>
+        </div>
+        
+        <div class="container">
+            <h3>In Progress</h3>
+            <div class="task" draggable="true">TP-102: Scaffold UI</div>
+        </div>
+        
+        <div class="container">
+            <h3>Done</h3>
+        </div>
+    </div>
+
+    <div class="trash">
+        🗑️ Drop tasks here to Archive / Delete
+    </div>
 </body>
 </html>
