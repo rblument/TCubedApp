@@ -24,6 +24,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.sql.*;
+import jakarta.servlet.http.HttpSession;
 
 
 @SpringBootApplication
@@ -52,12 +53,11 @@ class AuthController {
     }
 
     @PostMapping("/login")
-    public String handleLogin(@RequestParam String username, @RequestParam String password, Model model) {
-        // Enforce secure Aiven SSL connection parameter natively
+    // Added HttpSession session to the parameters
+    public String handleLogin(@RequestParam String username, @RequestParam String password, Model model, HttpSession session) {
         String secureUrl = dbUrl + (dbUrl.contains("?") ? "&" : "?") + "sslmode=REQUIRED";
 
         try (Connection conn = DriverManager.getConnection(secureUrl, dbUser, dbPassword)) {
-            // Simple educational table validation
             String sql = "SELECT * FROM Account WHERE UserId = ? AND Password = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, username);
@@ -65,8 +65,9 @@ class AuthController {
                 ResultSet rs = stmt.executeQuery();
 
                 if (rs.next()) {
-                    model.addAttribute("name", rs.getString("userId"));
-                    return "redirect:/projects"; // Redirects towards projects screen
+                    // Save the username to the session instead of the model
+                    session.setAttribute("username", rs.getString("userId"));
+                    return "redirect:/projects"; 
                 }
             }
         } catch (SQLException e) {
@@ -81,11 +82,11 @@ class AuthController {
     public String showProjects() {
         return "projects";
     }
-
-    @GetMapping("/dashboard")
-    public String showDashboard(@RequestParam(name="project", required=false) String project, Model model) {
-        model.addAttribute("projectName", project != null ? project : "Default Project");
-        return "dashboard";
+    
+    @GetMapping("/logout")
+    public String logout(HttpSession session) {
+        session.invalidate(); // Destroys the session data
+        return "redirect:/";  // Routes back to the login page
     }
 }
 
