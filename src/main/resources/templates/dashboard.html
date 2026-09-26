@@ -1,11 +1,96 @@
 <!DOCTYPE html>
-
-<html lang="en">
-    
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Board - <span th:text="${projectName}"></span></title>
+    <link rel="stylesheet" th:href="@{/style.css}">
+</head>
 <body>
-  <!-- Standard data-th-text replaces th:text -->
-  <h1>Welcome to the TCubed, <span data-th-text="${name}">User</span>!</h1>
-  <p>Student contributors can add interactive features or styles to this page via GitHub.</p>
-  <a href="/">Log Out</a>
+    
+    <!-- Navigation Header -->
+    <div th:replace="~{fragments :: top-nav}"></div>
+    
+    <h2 th:text="${projectName} + ' Board'">Project Board</h2>
+    
+    <div class="board">
+        <!-- To-Do Column -->
+        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>To-Do</h3>
+            <div class="task" draggable="true" 
+                 th:each="task : ${tasks}" 
+                 th:if="${task.status == 'To-Do'}" 
+                 th:id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
+                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+            </div>
+        </div>
+        
+        <!-- In Progress Column -->
+        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>In Progress</h3>
+            <div class="task" draggable="true" 
+                 th:each="task : ${tasks}" 
+                 th:if="${task.status == 'In Progress'}" 
+                 th:id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
+                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+            </div>
+        </div>
+        
+        <!-- Done Column -->
+        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>Done</h3>
+            <div class="task" draggable="true" 
+                 th:each="task : ${tasks}" 
+                 th:if="${task.status == 'Done'}" 
+                 th:id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
+                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trash bucket uses a custom drop function to delete the element -->
+    <div class="trash" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+        🗑️ Drop tasks here to Archive / Delete
+    </div>
+
+    <script>
+        // Grabs the ID of the task being dragged
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        // Prevents the browser's default block on dropping elements
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        // Moves the task into the new column container
+        function drop(ev, container) {
+            ev.preventDefault();
+            var taskId = ev.dataTransfer.getData("text");
+            var draggedElement = document.getElementById(taskId);
+            
+            // Appends the task to the bottom of the container
+            if (container.classList.contains('container')) {
+                container.appendChild(draggedElement);
+            }
+        }
+
+        // Deletes the task when dropped in the trash
+        function dropToTrash(ev) {
+            ev.preventDefault();
+            var taskId = ev.dataTransfer.getData("text");
+            var draggedElement = document.getElementById(taskId);
+            
+            if (draggedElement) {
+                draggedElement.remove(); // Removes the HTML element completely
+            }
+            ev.target.classList.remove('drag-over'); // Resets the hover color
+        }
+    </script>
 </body>
 </html>

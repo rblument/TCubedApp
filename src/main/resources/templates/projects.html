@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Select Project</title>
+    <link rel="stylesheet" th:href="@{/style.css}">
+</head>
+<body>
+    <div th:replace="~{fragments :: top-nav}"></div>
+    <h2>Select a Project</h2>
+    <div style="display: flex; gap: 10px;">
+        <a th:href="@{/dashboard(project='Capstone')}"><button>TCubed Capstone</button></a>
+        <a th:href="@{/dashboard(project='Personal')}"><button>Personal Tracker</button></a>
+    </div>
+</body>
+</html>
