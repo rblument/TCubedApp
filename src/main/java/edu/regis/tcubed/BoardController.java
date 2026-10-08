@@ -31,10 +31,10 @@ public class BoardController {
 
         // Create the Mock Data (Faking the database)
         List<Task> mockTasks = new ArrayList<>();
-        mockTasks.add(new Task("TP-101", "Draft ER Diagram", "Design the MySQL schema", "To-Do", "Dylan"));
-        mockTasks.add(new Task("TP-102", "Scaffold UI", "Build Thymeleaf board", "In Progress", "Oscar"));
-        mockTasks.add(new Task("TP-103", "Setup Git Repo", "Initialize branch structure", "Done", "Thomas"));
-        mockTasks.add(new Task("TP-104", "Research SortableJS", "Look into drag-and-drop libraries", "To-Do", "Oscar"));
+        mockTasks.add(new Task(101, "Draft ER Diagram", "Design the MySQL schema", 1, 1, "Dylan"));
+        mockTasks.add(new Task(102, "Scaffold UI", "Build Thymeleaf board", 1, 2, "Oscar"));
+        mockTasks.add(new Task(103, "Setup Git Repo", "Initialize branch structure", 1, 3, "Thomas"));
+        mockTasks.add(new Task(104, "Research SortableJS", "Look into drag-and-drop libraries", 2, 1, "Oscar"));
 
         // Inject the data into the HTML model
         model.addAttribute("tasks", mockTasks);
