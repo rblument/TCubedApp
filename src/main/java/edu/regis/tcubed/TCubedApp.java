@@ -66,11 +66,26 @@ class AuthController {
             System.getProperty("DB_PASSWORD") : System.getenv("DB_PASSWORD");
 
     /**
+     * Handles requests to the root URL ("/").
+     * Redirects to "/login" if no user is logged in, or to "/projects" if authenticated.
+     *
+     * @param session the current {@link HttpSession}
+     * @return a redirect URL to "/login" or "/projects"
+     */
+    @GetMapping("/")
+    public String handleRoot(HttpSession session) {
+        if (session == null || session.getAttribute("userId") == null) {
+            return "redirect:/login";
+        }
+        return "redirect:/projects";
+    }
+
+    /**
      * Renders the login page view.
      *
      * @return the name of the Thymeleaf login view template ("login")
      */
-    @GetMapping("/")
+    @GetMapping("/login")
     public String showLoginPage() {
         return "login";
     }
@@ -101,6 +116,7 @@ class AuthController {
                 if (rs.next()) {
                     // Save the username to the session instead of the model
                     session.setAttribute("username", rs.getString("userId"));
+                    session.setAttribute("userId", rs.getString("userId"));
                     return "redirect:/projects"; 
                 }
             }
@@ -126,12 +142,12 @@ class AuthController {
      * Logs the current user out by invalidating their active HTTP session.
      *
      * @param session the {@link HttpSession} to invalidate
-     * @return a redirect URL to the root login page ("redirect:/")
+     * @return a redirect URL to the login page ("redirect:/login")
      */
     @GetMapping("/logout")
     public String logout(HttpSession session) {
         session.invalidate(); // Destroys the session data
-        return "redirect:/";  // Routes back to the login page
+        return "redirect:/login";  // Routes back to the login page
     }
 }
 
