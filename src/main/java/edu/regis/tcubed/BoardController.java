@@ -8,9 +8,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Controller for handling dashboard and task board view operations.
+ * Manages presentation of tasks and project boards in the user interface.
+ *
+ * @author Oscar Castillo Saucedo
+ */
 @Controller
 public class BoardController {
 
+    /**
+     * Displays the dashboard view for a specified project, populating the model
+     * with project details and associated tasks.
+     *
+     * @param project the name of the project to display, or null to use the default project
+     * @param model   the Spring UI {@link Model} used to pass data to the view
+     * @return the name of the Thymeleaf view template ("dashboard")
+     */
     @GetMapping("/dashboard")
     public String showDashboard(@RequestParam(name="project", required=false) String project, Model model) {
         model.addAttribute("projectName", project != null ? project : "Default Project");
