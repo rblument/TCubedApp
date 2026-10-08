@@ -13,7 +13,7 @@
     
     <div class="board">
         <!-- To-Do Column -->
-        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+        <div class="container" data-bucket-id="1" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>To-Do</h3>
             <div class="task" draggable="true" 
                  th:each="task : ${tasks}" 
@@ -26,7 +26,7 @@
         </div>
         
         <!-- In Progress Column -->
-        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+        <div class="container" data-bucket-id="2" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>In Progress</h3>
             <div class="task" draggable="true" 
                  th:each="task : ${tasks}" 
@@ -39,7 +39,7 @@
         </div>
         
         <!-- Done Column -->
-        <div class="container" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+        <div class="container" data-bucket-id="3" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>Done</h3>
             <div class="task" draggable="true" 
                  th:each="task : ${tasks}" 
@@ -77,6 +77,12 @@
             // Appends the task to the bottom of the container
             if (container.classList.contains('container')) {
                 container.appendChild(draggedElement);
+
+                var bucketId = container.getAttribute('data-bucket-id') || 1;
+                var tasksInContainer = container.querySelectorAll('.task');
+                var position = Array.from(tasksInContainer).indexOf(draggedElement) + 1;
+
+                persistTaskMove(taskId, bucketId, position);
             }
         }
 
@@ -88,8 +94,25 @@
             
             if (draggedElement) {
                 draggedElement.remove(); // Removes the HTML element completely
+                persistTaskMove(taskId, 4, 0);
             }
             ev.target.classList.remove('drag-over'); // Resets the hover color
+        }
+
+        function persistTaskMove(taskId, newBucketId, newPosition) {
+            fetch(`/api/tasks/${taskId}/move?newBucketId=${newBucketId}&newPosition=${newPosition}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error("Failed to persist task movement in the database.");
+                    // Optional: Revert the DOM movement if the server fails
+                }
+            })
+            .catch(error => console.error("Error moving task:", error));
         }
     </script>
 </body>

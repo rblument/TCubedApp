@@ -165,17 +165,13 @@ public class Task {
     }
 
     /**
-     * Helper method mapping bucketId to status names for view rendering.
+     * Helper method retrieving the status display name mapped from the task's
+     * bucket identifier using {@link TaskStatus}.
      *
-     * @return status name corresponding to the bucketId
+     * @return status display name corresponding to the bucketId
      */
     public String getStatus() {
-        return switch (bucketId) {
-            case 1 -> "To-Do";
-            case 2 -> "In Progress";
-            case 3 -> "Done";
-            default -> "Bucket " + bucketId;
-        };
+        return TaskStatus.fromBucketId(this.bucketId).getDisplayName();
     }
 
     /**
