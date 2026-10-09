@@ -1,5 +1,6 @@
 package edu.regis.tcubed;
 
+import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,15 +32,21 @@ public class BoardController {
 
     /**
      * Displays the dashboard view for a specified project, populating the model
-     * with project details and associated tasks.
+     * with project details and associated tasks, and saving the active project to the session.
      *
      * @param project the name of the project to display, or null to use the default project
      * @param model   the Spring UI {@link Model} used to pass data to the view
+     * @param session the current {@link HttpSession} used to store active project state
      * @return the name of the Thymeleaf view template ("dashboard")
      */
     @GetMapping("/dashboard")
-    public String showDashboard(@RequestParam(name="project", required=false) String project, Model model) {
-        model.addAttribute("projectName", project != null ? project : "Default Project");
+    public String showDashboard(@RequestParam(name="project", required=false) String project, Model model, HttpSession session) {
+        String activeProject = project != null ? project : (String) session.getAttribute("activeProjectId");
+        if (activeProject == null) {
+            activeProject = "Default Project";
+        }
+        session.setAttribute("activeProjectId", activeProject);
+        model.addAttribute("projectName", activeProject);
 
         // Inject the data into the HTML model
         model.addAttribute("tasks", mockTasks);

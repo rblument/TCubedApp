@@ -24,6 +24,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.sql.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 
@@ -141,13 +142,16 @@ class AuthController {
     /**
      * Logs the current user out by invalidating their active HTTP session.
      *
-     * @param session the {@link HttpSession} to invalidate
+     * @param request the {@link HttpServletRequest} containing the active session
      * @return a redirect URL to the login page ("redirect:/login")
      */
     @GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate(); // Destroys the session data
-        return "redirect:/login";  // Routes back to the login page
+    public String logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate(); // Destroys the session data
+        }
+        return "redirect:/login"; // Routes back to the login page
     }
 }
 
