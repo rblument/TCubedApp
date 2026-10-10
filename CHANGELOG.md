@@ -22,6 +22,30 @@ To maintain consistency across frontend and backend development, the team has ag
 
 ## 📝 Changelog
 
+### [Sprint 2] - Domain Alignment, REST API, & Session Security
+
+#### Added
+* `src/main/java/edu/regis/tcubed/TaskStatus.java`: Introduced strongly-typed Enum to map database bucket IDs (`1: To-Do`, `2: In Progress`, `3: Done`, `4: Trash`) to frontend display names, eliminating magic strings.
+* `src/main/java/edu/regis/tcubed/AuthInterceptor.java` & `src/main/java/edu/regis/tcubed/WebConfig.java`: Implemented an `AuthInterceptor` and `WebConfig` for session-based route protection, redirecting unauthenticated users to the login page.
+* `src/main/resources/static/js/api/boardClient.js`: Restructured frontend JavaScript API calls into a dedicated client file isolating asynchronous HTTP operations (`persistTaskMove`).
+
+#### Changed & Enhanced
+* `src/main/java/edu/regis/tcubed/Task.java`: Refactored the Task POJO to align strictly with the relational database schema (using integer IDs and tracking position).
+* `src/main/java/edu/regis/tcubed/BoardController.java`:
+  * Built a REST endpoint (`/api/tasks/{taskId}/move`) to handle asynchronous drag-and-drop persistence.
+  * Updated mock data generation to use integer IDs for task, position, and bucket.
+  * Captured `project` parameter in `showDashboard` and saved it to `HttpSession` as `activeProjectId`.
+* `src/main/java/edu/regis/tcubed/TCubedApp.java`:
+  * Mapped root URL `/` to redirect unauthenticated users to `/login`.
+  * Updated `@GetMapping("/logout")` to accept `HttpServletRequest` and safely invalidate sessions using `request.getSession(false)`.
+* `src/main/resources/templates/dashboard.html`:
+  * Wired the frontend Trash bucket drop zone to update the task's bucket ID to 4, fulfilling UC-5 without hard-deleting records.
+  * Added script import for `/js/api/boardClient.js`.
+* `src/main/resources/templates/fragments.html`:
+  * Fixed session state tracking for the 'Active Board' navigation link using `session.activeProjectId`.
+  * Corrected 'Logout' navigation link to route to `@{/logout}`.
+* **Documentation**: Backfilled comprehensive JavaDocs across all controllers and domain models (`BoardController`, `TCubedApp`, `Task`, `TaskStatus`, `AuthInterceptor`, `WebConfig`).
+
 ### [Sprint 1] - Initial Setup, UI Architecture & Prototyping
 
 #### Added
