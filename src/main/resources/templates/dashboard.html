@@ -1,27 +1,29 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 <head>
-    <title>Board - <span th:text="${projectName}"></span></title>
-    <link rel="stylesheet" th:href="@{/style.css}">
+    <title>Board - <span data-th-text="${projectName}"></span></title>
+    <link rel="stylesheet" data-th-href="@{/style.css}">
+    <script defer data-th-src="@{/js/api/boardClient.js}"></script>
+    <script defer data-th-src="@{/js/boardDragDrop.js}"></script>
 </head>
 <body>
     
     <!-- Navigation Header -->
-    <div th:replace="~{fragments :: top-nav}"></div>
+    <div data-th-replace="~{fragments :: top-nav}"></div>
     
-    <h2 th:text="${projectName} + ' Board'">Project Board</h2>
+    <h2 data-th-text="${projectName} + ' Board'">Project Board</h2>
     
     <div class="board">
         <!-- To-Do Column -->
         <div class="container" data-bucket-id="1" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>To-Do</h3>
             <div class="task" draggable="true" 
-                 th:each="task : ${tasks}" 
-                 th:if="${task.status == 'To-Do'}" 
-                 th:id="${task.taskId}" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'To-Do'}" 
+                 data-th-id="${task.taskId}" 
                  ondragstart="drag(event)">
-                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
-                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
         
@@ -29,12 +31,12 @@
         <div class="container" data-bucket-id="2" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>In Progress</h3>
             <div class="task" draggable="true" 
-                 th:each="task : ${tasks}" 
-                 th:if="${task.status == 'In Progress'}" 
-                 th:id="${task.taskId}" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'In Progress'}" 
+                 data-th-id="${task.taskId}" 
                  ondragstart="drag(event)">
-                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
-                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
         
@@ -42,12 +44,12 @@
         <div class="container" data-bucket-id="3" ondragover="allowDrop(event)" ondrop="drop(event, this)">
             <h3>Done</h3>
             <div class="task" draggable="true" 
-                 th:each="task : ${tasks}" 
-                 th:if="${task.status == 'Done'}" 
-                 th:id="${task.taskId}" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'Done'}" 
+                 data-th-id="${task.taskId}" 
                  ondragstart="drag(event)">
-                <strong th:text="${task.taskId}"></strong>: <span th:text="${task.title}"></span>
-                <br><small style="color: gray;" th:text="${task.assignee}"></small>
+                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
     </div>
@@ -55,50 +57,6 @@
     <!-- Trash bucket uses a custom drop function to delete the element -->
     <div class="trash" data-bucket-id="4" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
         🗑️ Drop tasks here to Archive / Delete
-    </div>
-
-    <script>
-        // Grabs the ID of the task being dragged
-        function drag(ev) {
-            ev.dataTransfer.setData("text", ev.target.id);
-        }
-
-        // Prevents the browser's default block on dropping elements
-        function allowDrop(ev) {
-            ev.preventDefault();
-        }
-
-        // Moves the task into the new column container
-        function drop(ev, container) {
-            ev.preventDefault();
-            var taskId = ev.dataTransfer.getData("text");
-            var draggedElement = document.getElementById(taskId);
-            
-            // Appends the task to the bottom of the container
-            if (container.classList.contains('container')) {
-                container.appendChild(draggedElement);
-
-                var bucketId = container.getAttribute('data-bucket-id') || 1;
-                var tasksInContainer = container.querySelectorAll('.task');
-                var position = Array.from(tasksInContainer).indexOf(draggedElement) + 1;
-
-                persistTaskMove(taskId, bucketId, position);
-            }
-        }
-
-        // Deletes the task when dropped in the trash
-        function dropToTrash(ev) {
-            ev.preventDefault();
-            var taskId = ev.dataTransfer.getData("text");
-            var draggedElement = document.getElementById(taskId);
-            
-            if (draggedElement) {
-                draggedElement.remove(); // Removes the HTML element completely
-                persistTaskMove(taskId, 4, 0);
-            }
-            ev.target.classList.remove('drag-over'); // Resets the hover color
-        }
-    </script>
-    <script src="/js/api/boardClient.js"></script>
+    </div>    
 </body>
 </html>
