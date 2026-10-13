@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 <body>
     <!-- The th:fragment label is what you will call from other files -->
-    <header th:fragment="top-nav" class="navbar">
+    <header data-th-fragment="top-nav" class="navbar">
         <div class="logo">
             <h2>T³ Tracker</h2>
         </div>
         <div class="nav-links">
-            <a th:href="@{/projects}">My Projects</a>
-            <a th:href="@{/dashboard(project=${session.activeProjectId != null ? session.activeProjectId : 'Default'})}">Active Board</a>
+            <a data-th-href="@{/projects}">My Projects</a>
+            <a data-th-href="@{/dashboard(project=${session.activeProjectId != null ? session.activeProjectId : 'Default'})}">Active Board</a>
         </div>
         <div class="user-profile">
             <!-- Dynamically reads the session, falls back to 'Guest' if null -->
             <button class="dropbtn">
-                👤 <span th:text="${session.username != null ? session.username : 'Guest'}"></span> ▼
+                👤 <span data-th-text="${session.username != null ? session.username : 'Guest'}"></span> ▼
             </button>
             <div class="dropdown-content">
                 <a href="#">⚙️ Settings</a>
-                <a th:href="@{/logout}">🚪 Logout</a> 
+                <a data-th-href="@{/logout}">🚪 Logout</a> 
             </div>
         </div>
     </header>
