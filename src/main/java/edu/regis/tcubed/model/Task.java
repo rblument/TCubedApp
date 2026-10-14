@@ -1,4 +1,4 @@
-package edu.regis.tcubed;
+package edu.regis.tcubed.model;
 
 /**
  * Represents a task within a project board in the TCubed tracking system,
