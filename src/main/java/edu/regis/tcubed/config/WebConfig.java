@@ -1,4 +1,4 @@
-package edu.regis.tcubed;
+package edu.regis.tcubed.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;

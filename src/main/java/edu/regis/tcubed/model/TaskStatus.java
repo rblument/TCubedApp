@@ -1,4 +1,4 @@
-package edu.regis.tcubed;
+package edu.regis.tcubed.model;
 
 /**
  * Enumeration representing workflow statuses for tasks within TCubed,

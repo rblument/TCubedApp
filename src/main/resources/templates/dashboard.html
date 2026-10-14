@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Board - <span data-th-text="${projectName}"></span></title>
+    <title data-th-text="'Board - ' + ${projectName}">Board</title>
     <link rel="stylesheet" data-th-href="@{/css/style.css}">
     <script defer data-th-src="@{/js/api/boardClient.js}"></script>
     <script defer data-th-src="@{/js/boardDragDrop.js}"></script>

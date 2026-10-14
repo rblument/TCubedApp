@@ -1,5 +1,6 @@
-package edu.regis.tcubed;
+package edu.regis.tcubed.controller;
 
+import edu.regis.tcubed.model.Task;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
