@@ -1,26 +1,40 @@
 <!DOCTYPE html>
-<!--
- T^3: TCubed Task Tracking Tool
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log In - TCubed</title>
+    <link rel="stylesheet" data-th-href="@{/css/style.css}">
+</head>
+<body class="auth-body">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h2>T³ Tracker</h2>
+            <p>Sign in to your project workspace</p>
+        </div>
 
-  (C) Richard Blumenthal, All rights reserved
+        <div data-th-if="${param.registered}" class="alert alert-success">
+            Account created successfully! Please log in.
+        </div>
 
-  Unauthorized use, duplication or distribution without the authors'
-  permission is strictly prohibited.
+        <div data-th-if="${error}" class="alert alert-error" data-th-text="${error}"></div>
 
-  Unless required by applicable law or agreed to in writing, this
-  software is distributed on an "AS IS" basis without warranties
-  or conditions of any kind, either expressed or implied.
--->
+        <form action="/login" method="post" class="auth-form">
+            <div class="form-group">
+                <label for="username">User ID / Email</label>
+                <input type="text" id="username" name="username" placeholder="test@regis.edu" required />
+            </div>
 
-<html lang="en">   
-<body>
-  <h2>TCubed</h2>
-  <!-- Standard data-th-if replaces th:if -->
-  <p data-th-if="${error}" data-th-text="${error}" style="color:red;"></p>
-  <form action="/login" method="post">
-    <input type="text" name="username" placeholder="Username" required /><br/><br/>
-    <input type="password" name="password" placeholder="Password" required /><br/><br/>
-    <button type="submit">Log In</button>
-  </form>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required />
+            </div>
+
+            <button type="submit" class="btn-primary">Log In</button>
+        </form>
+
+        <div class="auth-footer">
+            Don't have an account? <a data-th-href="@{/register}">Create an Account</a>
+        </div>
+    </div>
 </body>
 </html>
