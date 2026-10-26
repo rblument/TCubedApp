@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Repository for managing Task persistence and board hierarchy queries in the database.
  *
- * @author Thomas Wintenburg, Oscar Castillo Saucedo
+ * @author Thomas Wintenburg, Oscar Castillo Saucedo, Dylan Cassagnol
  */
 @Repository
 public class TaskRepository {
@@ -305,4 +305,163 @@ public class TaskRepository {
             }
         }
     }
+    
+    /**
+     * Fetches tasks.
+     *  
+     */
+    public List<Task> getTasksForMember(
+            String userId, String projectId) throws SQLException {
+
+        List<Task> tasks = new ArrayList<>();
+
+        String sql =
+            "SELECT t.TaskId, t.Title, t.Body, t.Position, " +
+            "bu.Position AS LogicalBucketId, t.Assignee, " +
+            "p.Name AS ProjectName " +
+            "FROM TASK t " +
+            "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+            "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+            "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+            "JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId " +
+            "WHERE pm.UserId = ? AND p.ProjectId = ? " +
+            "ORDER BY t.Position, t.TaskId";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, userId);
+            stmt.setInt(2, Integer.parseInt(projectId));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Task task = new Task(
+                        rs.getInt("TaskId"),
+                        rs.getString("Title"),
+                        rs.getString("Body"),
+                        rs.getInt("Position"),
+                        rs.getInt("LogicalBucketId"),
+                        rs.getString("Assignee")
+                    );
+
+                    task.setProjectName(rs.getString("ProjectName"));
+                    tasks.add(task);
+                }
+            }
+        }
+
+        return tasks;
+    }
+
+    /**
+     * Fetches a task only when the user belongs
+     * to the task's project
+     *
+     */
+    public Task findTaskForMember(
+            int taskId, String userId, String projectId)
+            throws SQLException {
+
+        String sql =
+            "SELECT t.TaskId, t.Title, t.Body, t.Position, " +
+            "bu.Position AS LogicalBucketId, t.Assignee, " +
+            "p.Name AS ProjectName " +
+            "FROM TASK t " +
+            "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+            "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+            "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+            "JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId " +
+            "WHERE t.TaskId = ? AND pm.UserId = ? " +
+            "AND p.ProjectId = ?";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, taskId);
+            stmt.setString(2, userId);
+            stmt.setInt(3, Integer.parseInt(projectId));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Task task = new Task(
+                        rs.getInt("TaskId"),
+                        rs.getString("Title"),
+                        rs.getString("Body"),
+                        rs.getInt("Position"),
+                        rs.getInt("LogicalBucketId"),
+                        rs.getString("Assignee")
+                    );
+
+                    task.setProjectName(rs.getString("ProjectName"));
+                    return task;
+                }
+            }
+        }
+
+        return null;
+    }
+    
+    /**
+     * Updates task details for an authorized project member.
+     *
+     */
+    public Task updateTaskForMember(
+            int taskId, Task task, String userId,
+            String projectId) throws SQLException {
+
+        String sql =
+            "UPDATE TASK t " +
+            "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+            "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+            "JOIN PROJECT_MEMBER pm ON bo.ProjectId = pm.ProjectId " +
+            "SET t.Title = ?, t.Body = ?, t.Assignee = ? " +
+            "WHERE t.TaskId = ? AND pm.UserId = ? " +
+            "AND bo.ProjectId = ?";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, task.getTitle());
+            stmt.setString(2, task.getBody());
+            stmt.setString(3, task.getAssignee());
+            stmt.setInt(4, taskId);
+            stmt.setString(5, userId);
+            stmt.setInt(6, Integer.parseInt(projectId));
+
+            if (stmt.executeUpdate() == 0) {
+                return null;
+            }
+        }
+
+        return findTaskForMember(taskId, userId, projectId);
+    }
+
+    /**
+     * Delete task only if permitted access to project.
+     *
+     */
+    public boolean deleteTaskForMember(
+            int taskId, String userId, String projectId)
+            throws SQLException {
+
+        String sql =
+            "DELETE t FROM TASK t " +
+            "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+            "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+            "JOIN PROJECT_MEMBER pm ON bo.ProjectId = pm.ProjectId " +
+            "WHERE t.TaskId = ? AND pm.UserId = ? " +
+            "AND bo.ProjectId = ?";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, taskId);
+            stmt.setString(2, userId);
+            stmt.setInt(3, Integer.parseInt(projectId));
+
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+
 }
