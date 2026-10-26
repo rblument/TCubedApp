@@ -13,6 +13,21 @@
     
     <h2 data-th-text="${projectName} + ' Board'">Project Board</h2>
     
+    <!-- Create Task Form Bar -->
+    <div class="create-task-bar">
+        <form id="createTaskForm" onsubmit="handleCreateTaskSubmit(event)" class="create-task-form">
+            <input type="text" id="taskTitle" name="title" placeholder="New task title..." required />
+            <input type="text" id="taskBody" name="body" placeholder="Description (optional)" />
+            <input type="text" id="taskAssignee" name="assignee" placeholder="Assignee (optional)" />
+            <select id="taskBucketId" name="bucketId">
+                <option value="1">To-Do</option>
+                <option value="2">In Progress</option>
+                <option value="3">Done</option>
+            </select>
+            <button type="submit" class="btn-add-task">+ Add Task</button>
+        </form>
+    </div>
+
     <div class="board">
         <!-- To-Do Column -->
         <div class="container" data-bucket-id="1" ondragover="allowDrop(event)" ondrop="drop(event, this)">

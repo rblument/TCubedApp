@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Account - TCubed</title>
+    <link rel="stylesheet" data-th-href="@{/css/style.css}">
+</head>
+<body class="auth-body">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h2>T³ Tracker</h2>
+            <p>Create your workspace account</p>
+        </div>
+
+        <div data-th-if="${error}" class="alert alert-error" data-th-text="${error}"></div>
+
+        <form action="/register" method="post" class="auth-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" name="firstName" placeholder="e.g., Testy" required />
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" name="lastName" placeholder="e.g., McTest" required />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="userId">User ID / Regis Email</label>
+                <input type="email" id="userId" name="userId" placeholder="username@regis.edu" required />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Min. 6 characters" minlength="6" required />
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter password" minlength="6" required />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="question">Security Question</label>
+                <select id="question" name="question" required>
+                    <option value="0">What city were you born in?</option>
+                    <option value="1">What was the name of your first pet?</option>
+                    <option value="2">What was the model of your first car?</option>
+                    <option value="3">What is your favorite course at Regis?</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="answer">Security Answer</label>
+                <input type="text" id="answer" name="answer" placeholder="Your answer" required />
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="isStudent" name="isStudent" value="true" checked />
+                <label for="isStudent">I am currently a student</label>
+            </div>
+
+            <button type="submit" class="btn-primary">Create Account</button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a data-th-href="@{/login}">Log In</a>
+        </div>
+    </div>
+</body>
+</html>

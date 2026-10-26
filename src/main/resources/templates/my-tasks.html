@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title data-th-text="${assigneeName} + '\'s Assigned Tasks - TCubed'">My Tasks</title>
+    <link rel="stylesheet" data-th-href="@{/css/style.css}">
+    <script defer data-th-src="@{/js/api/boardClient.js}"></script>
+    <script defer data-th-src="@{/js/boardDragDrop.js}"></script>
+</head>
+<body>
+    
+    <!-- Navigation Header -->
+    <div data-th-replace="~{fragments :: top-nav}"></div>
+    
+    <h2 data-th-text="${assigneeName} + '\'s Assigned Tasks'">My Tasks</h2>
+    
+    <div class="board">
+        <!-- To-Do Column -->
+        <div class="container" data-bucket-id="1" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>To-Do</h3>
+            <div class="task" draggable="true" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'To-Do'}" 
+                 data-th-id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <span class="project-badge" data-th-if="${task.projectName}" data-th-text="${task.projectName}"></span>
+                <div>
+                    <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                </div>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <small style="color: gray;" data-th-text="${task.assignee}"></small>
+            </div>
+        </div>
+        
+        <!-- In Progress Column -->
+        <div class="container" data-bucket-id="2" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>In Progress</h3>
+            <div class="task" draggable="true" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'In Progress'}" 
+                 data-th-id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <span class="project-badge" data-th-if="${task.projectName}" data-th-text="${task.projectName}"></span>
+                <div>
+                    <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                </div>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <small style="color: gray;" data-th-text="${task.assignee}"></small>
+            </div>
+        </div>
+        
+        <!-- Done Column -->
+        <div class="container" data-bucket-id="3" ondragover="allowDrop(event)" ondrop="drop(event, this)">
+            <h3>Done</h3>
+            <div class="task" draggable="true" 
+                 data-th-each="task : ${tasks}" 
+                 data-th-if="${task.status == 'Done'}" 
+                 data-th-id="${task.taskId}" 
+                 ondragstart="drag(event)">
+                <span class="project-badge" data-th-if="${task.projectName}" data-th-text="${task.projectName}"></span>
+                <div>
+                    <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
+                </div>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <small style="color: gray;" data-th-text="${task.assignee}"></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trash bucket uses a custom drop function to delete the element -->
+    <div class="trash" data-bucket-id="4" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+        🗑️ Drop tasks here to Archive / Delete
+    </div>    
+</body>
+</html>

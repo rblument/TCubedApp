@@ -71,3 +71,19 @@ To maintain consistency across frontend and backend development, the team has ag
 #### Infrastructure & Backend (Team Synced)
 * `pom.xml`: Integrated Java 17 and Spring Boot 3.2.0 properties, standard main class configuration, and the `windows-onedrive-fix` Maven build profile.
 * `database/SetupDB.sql`: (In progress - Dylan) Relational schema design and ER diagram modeling for Task and Sprint persistence.
+
+### [Sprint 3] - Account Creation, Full-Stack Task Pipeline, & Unified Dashboard
+
+#### Added
+* `src/main/resources/templates/register.html`: Scaffolded full Account Creation UI (UC-1) with form validation.
+* `src/main/resources/templates/my-tasks.html`: Implemented a unified personal dashboard displaying all tasks assigned to the active user across multiple projects.
+* **REST API:** Created `POST /api/tasks` in `BoardController` to handle asynchronous task creation and database insertion.
+* **Database Integration:** Implemented `createTask`, `updateTaskPosition`, and `getTasksByAssignee` in `TaskRepository`. Added an auto-initialization helper to guarantee required `PROJECT`, `BOARD`, and `BUCKET` hierarchies exist prior to task insertion.
+
+#### Changed & Enhanced
+* `AuthController`: Added `GET /register` and `POST /register` with validation logic. Redirected post-login routing from `/projects` to `/my-tasks`.
+* `AccountRepository`: Implemented SHA-256 password hashing for new accounts, retaining hybrid fallback support for plaintext legacy seed accounts.
+* `boardClient.js`: Added `createTask` fetch logic and dynamic DOM rendering (`appendTaskToBoard`) to update the Kanban board without page reloads.
+
+#### Fixed
+* **Cross-Project Data Bleed:** Modified `TaskRepository` to generate unique `BUCKET` IDs per project board rather than relying on global IDs (1-4), ensuring tasks remain isolated to their respective project workspaces.
