@@ -28,7 +28,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     /**
      * Registers application interceptors to secure specific endpoints.
-     * Applies {@link AuthInterceptor} to "/dashboard", "/projects", and "/api/**",
+     * Applies {@link AuthInterceptor} to "/dashboard", "/projects", "/my-tasks", and "/api/**",
      * while explicitly excluding "/login", "/register", "/", and static resources ("/css/**", "/js/**").
      *
      * @param registry the {@link InterceptorRegistry} to configure
@@ -36,7 +36,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
-                .addPathPatterns("/dashboard", "/projects", "/api/**")
+                .addPathPatterns("/dashboard", "/projects", "/my-tasks", "/api/**")
                 .excludePathPatterns("/login", "/register", "/", "/css/**", "/js/**");
     }
 }

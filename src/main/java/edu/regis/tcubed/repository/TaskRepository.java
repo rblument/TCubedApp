@@ -78,22 +78,54 @@ public class TaskRepository {
 
         String[] bucketNames = {"To-Do", "In Progress", "Done", "Trash"};
         for (int i = 0; i < bucketNames.length; i++) {
-            int bucketId = i + 1;
-            try (PreparedStatement checkBucket = conn.prepareStatement("SELECT BucketId FROM BUCKET WHERE BucketId = ?")) {
-                checkBucket.setInt(1, bucketId);
+            int position = i + 1;
+            try (PreparedStatement checkBucket = conn.prepareStatement(
+                    "SELECT BucketId FROM BUCKET WHERE BoardId = ? AND Position = ?")) {
+                checkBucket.setInt(1, boardId);
+                checkBucket.setInt(2, position);
                 ResultSet rs = checkBucket.executeQuery();
                 if (!rs.next()) {
                     try (PreparedStatement insertBucket = conn.prepareStatement(
-                            "INSERT INTO BUCKET (BucketId, Name, Position, BoardId) VALUES (?, ?, ?, ?)")) {
-                        insertBucket.setInt(1, bucketId);
-                        insertBucket.setString(2, bucketNames[i]);
-                        insertBucket.setInt(3, bucketId);
-                        insertBucket.setInt(4, boardId);
+                            "INSERT INTO BUCKET (Name, Position, BoardId) VALUES (?, ?, ?)")) {
+                        insertBucket.setString(1, bucketNames[i]);
+                        insertBucket.setInt(2, position);
+                        insertBucket.setInt(3, boardId);
                         insertBucket.executeUpdate();
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Resolves the actual auto-incremented database BucketId corresponding to a project's
+     * logical bucket position (1: To-Do, 2: In Progress, 3: Done, 4: Trash).
+     *
+     * @param conn           active JDBC connection
+     * @param projectName    the active project name
+     * @param bucketPosition logical bucket position (1..4)
+     * @return the database BucketId foreign key
+     * @throws SQLException if the bucket cannot be found or resolved
+     */
+    private int resolveDatabaseBucketId(Connection conn, String projectName, int bucketPosition) throws SQLException {
+        ensureBoardBucketsExist(conn, projectName);
+
+        String sql = "SELECT bu.BucketId " +
+                     "FROM BUCKET bu " +
+                     "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                     "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                     "WHERE p.Name = ? AND bu.Position = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, projectName);
+            stmt.setInt(2, bucketPosition);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("BucketId");
+                }
+            }
+        }
+        throw new SQLException("Could not resolve database BucketId for project: " + projectName + ", position: " + bucketPosition);
     }
 
     /**
@@ -109,7 +141,7 @@ public class TaskRepository {
         try (Connection conn = connectionManager.getConnection()) {
             ensureBoardBucketsExist(conn, projectName);
 
-            String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, t.BucketId, t.Assignee " +
+            String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, p.Name AS ProjectName " +
                          "FROM TASK t " +
                          "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
                          "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
@@ -122,14 +154,56 @@ public class TaskRepository {
                 ResultSet rs = stmt.executeQuery();
 
                 while (rs.next()) {
-                    tasks.add(new Task(
+                    Task task = new Task(
                         rs.getInt("TaskId"),
                         rs.getString("Title"),
                         rs.getString("Body"),
                         rs.getInt("Position"),
-                        rs.getInt("BucketId"),
+                        rs.getInt("LogicalBucketId"),
                         rs.getString("Assignee")
-                    ));
+                    );
+                    task.setProjectName(rs.getString("ProjectName"));
+                    tasks.add(task);
+                }
+            }
+        }
+        return tasks;
+    }
+
+    /**
+     * Fetches all tasks assigned to a specific user across all projects.
+     *
+     * @param assignee the name of the assigned user
+     * @return list of tasks assigned to the user
+     * @throws SQLException if a database error occurs
+     */
+    public List<Task> getTasksByAssignee(String assignee) throws SQLException {
+        List<Task> tasks = new ArrayList<>();
+
+        try (Connection conn = connectionManager.getConnection()) {
+            String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, p.Name AS ProjectName " +
+                         "FROM TASK t " +
+                         "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+                         "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                         "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                         "WHERE LOWER(t.Assignee) = LOWER(?) " +
+                         "ORDER BY t.Position ASC, t.TaskId ASC";
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, assignee);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    Task task = new Task(
+                        rs.getInt("TaskId"),
+                        rs.getString("Title"),
+                        rs.getString("Body"),
+                        rs.getInt("Position"),
+                        rs.getInt("LogicalBucketId"),
+                        rs.getString("Assignee")
+                    );
+                    task.setProjectName(rs.getString("ProjectName"));
+                    tasks.add(task);
                 }
             }
         }
@@ -148,10 +222,13 @@ public class TaskRepository {
         try (Connection conn = connectionManager.getConnection()) {
             ensureBoardBucketsExist(conn, projectName);
 
+            int logicalBucket = task.getBucketId() > 0 ? task.getBucketId() : 1;
+            int dbBucketId = resolveDatabaseBucketId(conn, projectName, logicalBucket);
+
             int nextPosition = 1;
             String posSql = "SELECT COALESCE(MAX(Position), 0) + 1 AS NextPos FROM TASK WHERE BucketId = ?";
             try (PreparedStatement posStmt = conn.prepareStatement(posSql)) {
-                posStmt.setInt(1, task.getBucketId());
+                posStmt.setInt(1, dbBucketId);
                 ResultSet rs = posStmt.executeQuery();
                 if (rs.next()) {
                     nextPosition = rs.getInt("NextPos");
@@ -164,7 +241,7 @@ public class TaskRepository {
                 stmt.setString(1, task.getTitle());
                 stmt.setString(2, task.getBody());
                 stmt.setInt(3, task.getPosition());
-                stmt.setInt(4, task.getBucketId());
+                stmt.setInt(4, dbBucketId);
                 stmt.setString(5, task.getAssignee());
                 stmt.executeUpdate();
 
@@ -174,6 +251,8 @@ public class TaskRepository {
                     }
                 }
             }
+            task.setBucketId(logicalBucket);
+            task.setProjectName(projectName);
         }
         return task;
     }
@@ -181,17 +260,45 @@ public class TaskRepository {
     /**
      * Updates a task's bucket and vertical position when it is dragged and dropped.
      *
-     * @param taskId      the ID of the task being moved
-     * @param newBucketId the ID of the destination bucket
-     * @param newPosition the new vertical position index within the bucket
+     * @param taskId                   the ID of the task being moved
+     * @param newLogicalBucketPosition the destination logical bucket position (1..4)
+     * @param newPosition              the new vertical position index within the bucket
      * @throws SQLException if a database error occurs
      */
-    public void updateTaskPosition(int taskId, int newBucketId, int newPosition) throws SQLException {
+    public void updateTaskPosition(int taskId, int newLogicalBucketPosition, int newPosition) throws SQLException {
         try (Connection conn = connectionManager.getConnection()) {
-            String sql = "UPDATE TASK SET BucketId = ?, Position = ? WHERE TaskId = ?";
+            int boardId = -1;
+            String findBoardSql = "SELECT bu.BoardId FROM TASK t JOIN BUCKET bu ON t.BucketId = bu.BucketId WHERE t.TaskId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(findBoardSql)) {
+                stmt.setInt(1, taskId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        boardId = rs.getInt("BoardId");
+                    }
+                }
+            }
 
+            int targetBucketId = -1;
+            if (boardId != -1) {
+                String findBucketSql = "SELECT BucketId FROM BUCKET WHERE BoardId = ? AND Position = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(findBucketSql)) {
+                    stmt.setInt(1, boardId);
+                    stmt.setInt(2, newLogicalBucketPosition);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            targetBucketId = rs.getInt("BucketId");
+                        }
+                    }
+                }
+            }
+
+            if (targetBucketId == -1) {
+                targetBucketId = newLogicalBucketPosition;
+            }
+
+            String sql = "UPDATE TASK SET BucketId = ?, Position = ? WHERE TaskId = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, newBucketId);
+                stmt.setInt(1, targetBucketId);
                 stmt.setInt(2, newPosition);
                 stmt.setInt(3, taskId);
                 stmt.executeUpdate();

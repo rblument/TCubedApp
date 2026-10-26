@@ -7,8 +7,8 @@
             <h2>T³ Tracker</h2>
         </div>
         <div class="nav-links">
+            <a data-th-href="@{/my-tasks}">My Tasks</a>
             <a data-th-href="@{/projects}">My Projects</a>
-            <a data-th-href="@{/dashboard(project=${session.activeProjectId != null ? session.activeProjectId : 'Default'})}">Active Board</a>
         </div>
         <div class="user-profile">
             <!-- Dynamically reads the session, falls back to 'Guest' if null -->

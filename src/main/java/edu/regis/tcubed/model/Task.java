@@ -15,6 +15,7 @@ public class Task {
     private int position;
     private int bucketId;
     private String assignee;
+    private String projectName;
 
     /**
      * Default constructor for {@code Task}.
@@ -162,6 +163,24 @@ public class Task {
      */
     public void setAssignee(String assignee) {
         this.assignee = assignee;
+    }
+
+    /**
+     * Retrieves the project name associated with this task.
+     *
+     * @return the project name
+     */
+    public String getProjectName() {
+        return projectName;
+    }
+
+    /**
+     * Sets the project name associated with this task.
+     *
+     * @param projectName the project name to set
+     */
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
     }
 
     /**

@@ -66,6 +66,32 @@ public class BoardController {
     }
 
     /**
+     * Displays all tasks assigned to the currently authenticated user across all projects.
+     *
+     * @param model   the Spring UI {@link Model} used to pass data to the view
+     * @param session the current {@link HttpSession} containing the logged-in user identity
+     * @return the name of the Thymeleaf view template ("my-tasks")
+     */
+    @GetMapping("/my-tasks")
+    public String showMyTasks(Model model, HttpSession session) {
+        String username = (String) session.getAttribute("username");
+        if (username == null || username.isBlank()) {
+            username = "Guest";
+        }
+        model.addAttribute("assigneeName", username);
+
+        try {
+            List<Task> assignedTasks = taskRepository.getTasksByAssignee(username);
+            model.addAttribute("tasks", assignedTasks);
+        } catch (SQLException e) {
+            model.addAttribute("error", "Database warning: could not load assigned tasks (" + e.getMessage() + ")");
+            model.addAttribute("tasks", List.of());
+        }
+
+        return "my-tasks";
+    }
+
+    /**
      * REST endpoint to create a new task asynchronously via POST and persist it in the database.
      *
      * @param newTask the {@link Task} payload deserialized from the JSON request body

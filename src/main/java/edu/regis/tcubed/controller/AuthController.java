@@ -28,17 +28,17 @@ public class AuthController {
     
     /**
      * Handles requests to the root URL ("/").
-     * Redirects to "/login" if no user is logged in, or to "/projects" if authenticated.
+     * Redirects to "/login" if no user is logged in, or to "/my-tasks" if authenticated.
      *
      * @param session the current {@link HttpSession}
-     * @return a redirect URL to "/login" or "/projects"
+     * @return a redirect URL to "/login" or "/my-tasks"
      */
     @GetMapping("/")
     public String handleRoot(HttpSession session) {
         if (session == null || session.getAttribute("userId") == null) {
             return "redirect:/login";
         }
-        return "redirect:/projects";
+        return "redirect:/my-tasks";
     }
     
     /**
@@ -54,13 +54,13 @@ public class AuthController {
     /**
      * Processes user login requests by validating credentials against the database.
      * Upon successful authentication, the user ID is stored in the HTTP session
-     * and the client is redirected to the projects view.
+     * and the client is redirected to the user's personal task board.
      *
      * @param username the entered user ID / username credential
      * @param password the entered user password credential
      * @param model    the Spring UI {@link Model} used to pass error messages to the view
      * @param session  the {@link HttpSession} used to persist authentication state
-     * @return a redirect URL to "/projects" if authentication succeeds, or the "login" view template if it fails
+     * @return a redirect URL to "/my-tasks" if authentication succeeds, or the "login" view template if it fails
      */    
     @PostMapping("/login")
     public String handleLogin(@RequestParam String username, @RequestParam String password, Model model, HttpSession session) {
@@ -72,7 +72,7 @@ public class AuthController {
                 // Use the Account object's getters to set up the session
                 session.setAttribute("username", loggedInUser.getFirstName());
                 session.setAttribute("userId", loggedInUser.getUserId());
-                return "redirect:/projects";
+                return "redirect:/my-tasks";
             } else {
                 model.addAttribute("error", "Invalid Credentials");
             }

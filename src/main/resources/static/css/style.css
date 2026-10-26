@@ -203,3 +203,14 @@ body { font-family: sans-serif; padding: 20px; }
 .auth-footer a:hover {
     text-decoration: underline;
 }
+
+.project-badge {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
