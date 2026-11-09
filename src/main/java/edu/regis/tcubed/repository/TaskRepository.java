@@ -171,14 +171,61 @@ public class TaskRepository {
     }
 
     /**
-     * Fetches all tasks assigned to a specific user across all projects.
+     * Resolves a given assignee string to a valid ACCOUNT UserId.
+     * Verifies if the assignee is non-null/non-blank and exists in ACCOUNT(UserId)
+     * (or matches an account's FirstName, resolving it to UserId).
+     * If the entered assignee does not match any ACCOUNT record, returns null
+     * so database operations can safely bind NULL without foreign key violations.
      *
-     * @param assignee the name of the assigned user
+     * @param conn     active JDBC connection
+     * @param assignee the assignee string to validate (UserId or FirstName)
+     * @return the valid matching ACCOUNT UserId, or null if invalid or unassigned
+     * @throws SQLException if a database access error occurs
+     */
+    private String resolveAssignee(Connection conn, String assignee) throws SQLException {
+        if (assignee == null || assignee.isBlank()) {
+            return null;
+        }
+        String trimmed = assignee.trim();
+
+        // 1. Check if trimmed matches an existing ACCOUNT(UserId)
+        String checkUserIdSql = "SELECT UserId FROM ACCOUNT WHERE LOWER(UserId) = LOWER(?)";
+        try (PreparedStatement stmt = conn.prepareStatement(checkUserIdSql)) {
+            stmt.setString(1, trimmed);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("UserId");
+                }
+            }
+        }
+
+        // 2. Check if trimmed matches an existing ACCOUNT(FirstName)
+        String checkFirstNameSql = "SELECT UserId FROM ACCOUNT WHERE LOWER(FirstName) = LOWER(?)";
+        try (PreparedStatement stmt = conn.prepareStatement(checkFirstNameSql)) {
+            stmt.setString(1, trimmed);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("UserId");
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetches all tasks assigned to a specific user across all projects,
+     * matching by either account UserId or FirstName.
+     *
+     * @param assignee the user ID or first name of the assigned user
      * @return list of tasks assigned to the user
      * @throws SQLException if a database error occurs
      */
     public List<Task> getTasksByAssignee(String assignee) throws SQLException {
         List<Task> tasks = new ArrayList<>();
+        if (assignee == null || assignee.isBlank()) {
+            return tasks;
+        }
 
         try (Connection conn = connectionManager.getConnection()) {
             String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, p.Name AS ProjectName " +
@@ -186,11 +233,13 @@ public class TaskRepository {
                          "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
                          "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
                          "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
-                         "WHERE LOWER(t.Assignee) = LOWER(?) " +
+                         "LEFT JOIN ACCOUNT a ON t.Assignee = a.UserId " +
+                         "WHERE LOWER(t.Assignee) = LOWER(?) OR LOWER(a.FirstName) = LOWER(?) " +
                          "ORDER BY t.Position ASC, t.TaskId ASC";
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, assignee);
+                stmt.setString(2, assignee);
                 ResultSet rs = stmt.executeQuery();
 
                 while (rs.next()) {
@@ -212,6 +261,8 @@ public class TaskRepository {
 
     /**
      * Inserts a new task into the database TASK table and returns the generated TaskId.
+     * Verifies whether task assignee is valid against ACCOUNT(UserId) or ACCOUNT(FirstName),
+     * binding NULL if unmatched to prevent foreign key constraint violations.
      *
      * @param task        the task to persist
      * @param projectName the active project name
@@ -236,13 +287,20 @@ public class TaskRepository {
             }
             task.setPosition(nextPosition);
 
+            String resolvedAssignee = resolveAssignee(conn, task.getAssignee());
+            task.setAssignee(resolvedAssignee);
+
             String sql = "INSERT INTO TASK (Title, Body, Position, BucketId, Assignee) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 stmt.setString(1, task.getTitle());
                 stmt.setString(2, task.getBody());
                 stmt.setInt(3, task.getPosition());
                 stmt.setInt(4, dbBucketId);
-                stmt.setString(5, task.getAssignee());
+                if (resolvedAssignee != null) {
+                    stmt.setString(5, resolvedAssignee);
+                } else {
+                    stmt.setNull(5, Types.VARCHAR);
+                }
                 stmt.executeUpdate();
 
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -307,13 +365,20 @@ public class TaskRepository {
     }
     
     /**
-     * Fetches tasks.
-     *  
+     * Fetches all tasks for an authorized project member, filtering by either numeric
+     * ProjectId or project name string.
+     *
+     * @param userId    the unique user ID of the project member
+     * @param projectId numeric project ID or project name string
+     * @return list of tasks belonging to the project accessible to the user
+     * @throws SQLException if a database error occurs
      */
     public List<Task> getTasksForMember(
             String userId, String projectId) throws SQLException {
 
         List<Task> tasks = new ArrayList<>();
+        boolean isNumeric = projectId != null && projectId.matches("\\d+");
+        String projectFilter = isNumeric ? "p.ProjectId = ?" : "p.Name = ?";
 
         String sql =
             "SELECT t.TaskId, t.Title, t.Body, t.Position, " +
@@ -324,14 +389,18 @@ public class TaskRepository {
             "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
             "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
             "JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId " +
-            "WHERE pm.UserId = ? AND p.ProjectId = ? " +
+            "WHERE pm.UserId = ? AND " + projectFilter + " " +
             "ORDER BY t.Position, t.TaskId";
 
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, userId);
-            stmt.setInt(2, Integer.parseInt(projectId));
+            if (isNumeric) {
+                stmt.setInt(2, Integer.parseInt(projectId));
+            } else {
+                stmt.setString(2, projectId);
+            }
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -354,13 +423,23 @@ public class TaskRepository {
     }
 
     /**
-     * Fetches a task only when the user belongs
-     * to the task's project
+     * Fetches a specific task only if the user is an authorized member of the project,
+     * filtering by numeric ProjectId or project name string if provided.
+     * If projectId is null or blank, verifies membership across any project the user belongs to.
      *
+     * @param taskId    the ID of the task to find
+     * @param userId    the unique user ID of the project member
+     * @param projectId numeric project ID or project name string, or null
+     * @return the matching {@link Task} if found and authorized; null otherwise
+     * @throws SQLException if a database error occurs
      */
     public Task findTaskForMember(
             int taskId, String userId, String projectId)
             throws SQLException {
+
+        boolean hasProject = projectId != null && !projectId.isBlank();
+        boolean isNumeric = hasProject && projectId.matches("\\d+");
+        String projectFilter = hasProject ? (isNumeric ? " AND p.ProjectId = ?" : " AND p.Name = ?") : "";
 
         String sql =
             "SELECT t.TaskId, t.Title, t.Body, t.Position, " +
@@ -371,15 +450,20 @@ public class TaskRepository {
             "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
             "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
             "JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId " +
-            "WHERE t.TaskId = ? AND pm.UserId = ? " +
-            "AND p.ProjectId = ?";
+            "WHERE t.TaskId = ? AND pm.UserId = ?" + projectFilter;
 
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, taskId);
             stmt.setString(2, userId);
-            stmt.setInt(3, Integer.parseInt(projectId));
+            if (hasProject) {
+                if (isNumeric) {
+                    stmt.setInt(3, Integer.parseInt(projectId));
+                } else {
+                    stmt.setString(3, projectId);
+                }
+            }
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -402,34 +486,99 @@ public class TaskRepository {
     }
     
     /**
-     * Updates task details for an authorized project member.
+     * Updates task details for an authorized project member, validating foreign key safety
+     * on the assignee and supporting numeric ProjectId or project name strings.
+     * If projectId is null or blank, authorizes member access across any project they belong to.
+     * If task.getBucketId() > 0, also updates the task's bucket to the matching BucketId on the same board.
      *
+     * @param taskId    the ID of the task to update
+     * @param task      the {@link Task} containing updated values
+     * @param userId    the unique user ID of the authorized project member
+     * @param projectId numeric project ID or project name string, or null
+     * @return the updated {@link Task} if successful, or null if not found or unauthorized
+     * @throws SQLException if a database error occurs
      */
     public Task updateTaskForMember(
             int taskId, Task task, String userId,
             String projectId) throws SQLException {
 
-        String sql =
-            "UPDATE TASK t " +
-            "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
-            "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
-            "JOIN PROJECT_MEMBER pm ON bo.ProjectId = pm.ProjectId " +
-            "SET t.Title = ?, t.Body = ?, t.Assignee = ? " +
-            "WHERE t.TaskId = ? AND pm.UserId = ? " +
-            "AND bo.ProjectId = ?";
+        boolean hasProject = projectId != null && !projectId.isBlank();
+        boolean isNumeric = hasProject && projectId.matches("\\d+");
+        String projectFilter = hasProject ? (isNumeric ? " AND p.ProjectId = ?" : " AND p.Name = ?") : "";
 
-        try (Connection conn = connectionManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getConnection()) {
+            Integer targetBucketId = null;
+            if (task.getBucketId() > 0) {
+                int boardId = -1;
+                String findBoardSql = "SELECT bu.BoardId FROM TASK t JOIN BUCKET bu ON t.BucketId = bu.BucketId WHERE t.TaskId = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(findBoardSql)) {
+                    stmt.setInt(1, taskId);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            boardId = rs.getInt("BoardId");
+                        }
+                    }
+                }
 
-            stmt.setString(1, task.getTitle());
-            stmt.setString(2, task.getBody());
-            stmt.setString(3, task.getAssignee());
-            stmt.setInt(4, taskId);
-            stmt.setString(5, userId);
-            stmt.setInt(6, Integer.parseInt(projectId));
+                if (boardId != -1) {
+                    String findBucketSql = "SELECT BucketId FROM BUCKET WHERE BoardId = ? AND Position = ?";
+                    try (PreparedStatement stmt = conn.prepareStatement(findBucketSql)) {
+                        stmt.setInt(1, boardId);
+                        stmt.setInt(2, task.getBucketId());
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            if (rs.next()) {
+                                targetBucketId = rs.getInt("BucketId");
+                            }
+                        }
+                    }
+                }
 
-            if (stmt.executeUpdate() == 0) {
-                return null;
+                if (targetBucketId == null) {
+                    targetBucketId = task.getBucketId();
+                }
+            }
+
+            String resolvedAssignee = resolveAssignee(conn, task.getAssignee());
+            task.setAssignee(resolvedAssignee);
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("UPDATE TASK t ");
+            sql.append("JOIN BUCKET bu ON t.BucketId = bu.BucketId ");
+            sql.append("JOIN BOARD bo ON bu.BoardId = bo.BoardId ");
+            sql.append("JOIN PROJECT p ON bo.ProjectId = p.ProjectId ");
+            sql.append("JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId ");
+            sql.append("SET t.Title = ?, t.Body = ?, t.Assignee = ?");
+            if (targetBucketId != null) {
+                sql.append(", t.BucketId = ?");
+            }
+            sql.append(" WHERE t.TaskId = ? AND pm.UserId = ?");
+            sql.append(projectFilter);
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+                int idx = 1;
+                stmt.setString(idx++, task.getTitle());
+                stmt.setString(idx++, task.getBody());
+                if (resolvedAssignee != null) {
+                    stmt.setString(idx++, resolvedAssignee);
+                } else {
+                    stmt.setNull(idx++, Types.VARCHAR);
+                }
+                if (targetBucketId != null) {
+                    stmt.setInt(idx++, targetBucketId);
+                }
+                stmt.setInt(idx++, taskId);
+                stmt.setString(idx++, userId);
+                if (hasProject) {
+                    if (isNumeric) {
+                        stmt.setInt(idx++, Integer.parseInt(projectId));
+                    } else {
+                        stmt.setString(idx++, projectId);
+                    }
+                }
+
+                if (stmt.executeUpdate() == 0) {
+                    return null;
+                }
             }
         }
 
@@ -437,27 +586,44 @@ public class TaskRepository {
     }
 
     /**
-     * Delete task only if permitted access to project.
+     * Deletes a task only if the requesting user is an authorized member of the project,
+     * supporting numeric ProjectId or project name strings.
+     * If projectId is null or blank, authorizes member access across any project they belong to.
      *
+     * @param taskId    the ID of the task to delete
+     * @param userId    the unique user ID of the authorized project member
+     * @param projectId numeric project ID or project name string, or null
+     * @return true if the task was deleted; false otherwise
+     * @throws SQLException if a database error occurs
      */
     public boolean deleteTaskForMember(
             int taskId, String userId, String projectId)
             throws SQLException {
 
+        boolean hasProject = projectId != null && !projectId.isBlank();
+        boolean isNumeric = hasProject && projectId.matches("\\d+");
+        String projectFilter = hasProject ? (isNumeric ? " AND p.ProjectId = ?" : " AND p.Name = ?") : "";
+
         String sql =
             "DELETE t FROM TASK t " +
             "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
             "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
-            "JOIN PROJECT_MEMBER pm ON bo.ProjectId = pm.ProjectId " +
-            "WHERE t.TaskId = ? AND pm.UserId = ? " +
-            "AND bo.ProjectId = ?";
+            "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+            "JOIN PROJECT_MEMBER pm ON p.ProjectId = pm.ProjectId " +
+            "WHERE t.TaskId = ? AND pm.UserId = ?" + projectFilter;
 
         try (Connection conn = connectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, taskId);
             stmt.setString(2, userId);
-            stmt.setInt(3, Integer.parseInt(projectId));
+            if (hasProject) {
+                if (isNumeric) {
+                    stmt.setInt(3, Integer.parseInt(projectId));
+                } else {
+                    stmt.setString(3, projectId);
+                }
+            }
 
             return stmt.executeUpdate() > 0;
         }
