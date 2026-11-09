@@ -74,14 +74,19 @@ public class BoardController {
      */
     @GetMapping("/my-tasks")
     public String showMyTasks(Model model, HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
         String username = (String) session.getAttribute("username");
-        if (username == null || username.isBlank()) {
-            username = "Guest";
+
+        String queryAssignee = userId != null ? userId : username;
+        if (queryAssignee == null || queryAssignee.isBlank()) {
+            queryAssignee = "Guest";
         }
-        model.addAttribute("assigneeName", username);
+
+        String assigneeName = username != null ? username : (userId != null ? userId : "Guest");
+        model.addAttribute("assigneeName", assigneeName);
 
         try {
-            List<Task> assignedTasks = taskRepository.getTasksByAssignee(username);
+            List<Task> assignedTasks = taskRepository.getTasksByAssignee(queryAssignee);
             model.addAttribute("tasks", assignedTasks);
         } catch (SQLException e) {
             model.addAttribute("error", "Database warning: could not load assigned tasks (" + e.getMessage() + ")");
@@ -110,8 +115,8 @@ public class BoardController {
         }
 
         if (newTask.getAssignee() == null || newTask.getAssignee().isBlank()) {
-            String sessionUser = (String) session.getAttribute("username");
-            newTask.setAssignee(sessionUser != null ? sessionUser : "Unassigned");
+            String sessionUserId = (String) session.getAttribute("userId");
+            newTask.setAssignee(sessionUserId != null && !sessionUserId.isBlank() ? sessionUserId : null);
         }
 
         String activeProject = (String) session.getAttribute("activeProjectId");
