@@ -41,6 +41,13 @@ public class TaskApiController {
     public ResponseEntity<?> list(HttpSession session)
             throws SQLException {
 
+        // Reject requests from unauthenticated users
+        if (user(session) == null) {
+            return ResponseEntity.status(401)
+                    .body("Authentication required");
+        }
+
+        // Require an active project
         if (project(session) == null) {
             return ResponseEntity.badRequest()
                     .body("Select an active project first");
