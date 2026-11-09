@@ -3,6 +3,7 @@
 <head>
     <title data-th-text="'Board - ' + ${projectName}">Board</title>
     <link rel="stylesheet" data-th-href="@{/css/style.css}">
+    <script defer data-th-src="@{/js/api/taskClient.js}"></script>
     <script defer data-th-src="@{/js/api/boardClient.js}"></script>
     <script defer data-th-src="@{/js/boardDragDrop.js}"></script>
 </head>
@@ -35,10 +36,13 @@
             <div class="task" draggable="true" 
                  data-th-each="task : ${tasks}" 
                  data-th-if="${task.status == 'To-Do'}" 
-                 data-th-id="${task.taskId}" 
+                 data-th-id="${task.taskId}"
+                 data-th-attr="data-task-id=${task.taskId},data-task-title=${task.title},data-task-body=${task.body},data-task-assignee=${task.assignee},data-bucket-id=${task.bucketId}"
                  ondragstart="drag(event)">
-                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
-                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
+                <button type="button" class="btn-edit-task" onclick="event.stopPropagation(); openEditTaskModal(this.closest('.task'))" title="Edit Task" draggable="false">✏️</button>
+                <strong data-th-text="${task.taskId}"></strong>: <span class="task-title" data-th-text="${task.title}"></span>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <br><small class="task-assignee" style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
         
@@ -48,10 +52,13 @@
             <div class="task" draggable="true" 
                  data-th-each="task : ${tasks}" 
                  data-th-if="${task.status == 'In Progress'}" 
-                 data-th-id="${task.taskId}" 
+                 data-th-id="${task.taskId}"
+                 data-th-attr="data-task-id=${task.taskId},data-task-title=${task.title},data-task-body=${task.body},data-task-assignee=${task.assignee},data-bucket-id=${task.bucketId}"
                  ondragstart="drag(event)">
-                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
-                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
+                <button type="button" class="btn-edit-task" onclick="event.stopPropagation(); openEditTaskModal(this.closest('.task'))" title="Edit Task" draggable="false">✏️</button>
+                <strong data-th-text="${task.taskId}"></strong>: <span class="task-title" data-th-text="${task.title}"></span>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <br><small class="task-assignee" style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
         
@@ -61,10 +68,13 @@
             <div class="task" draggable="true" 
                  data-th-each="task : ${tasks}" 
                  data-th-if="${task.status == 'Done'}" 
-                 data-th-id="${task.taskId}" 
+                 data-th-id="${task.taskId}"
+                 data-th-attr="data-task-id=${task.taskId},data-task-title=${task.title},data-task-body=${task.body},data-task-assignee=${task.assignee},data-bucket-id=${task.bucketId}"
                  ondragstart="drag(event)">
-                <strong data-th-text="${task.taskId}"></strong>: <span data-th-text="${task.title}"></span>
-                <br><small style="color: gray;" data-th-text="${task.assignee}"></small>
+                <button type="button" class="btn-edit-task" onclick="event.stopPropagation(); openEditTaskModal(this.closest('.task'))" title="Edit Task" draggable="false">✏️</button>
+                <strong data-th-text="${task.taskId}"></strong>: <span class="task-title" data-th-text="${task.title}"></span>
+                <p class="task-body" data-th-if="${task.body}" data-th-text="${task.body}"></p>
+                <br><small class="task-assignee" style="color: gray;" data-th-text="${task.assignee}"></small>
             </div>
         </div>
     </div>
@@ -72,6 +82,52 @@
     <!-- Trash bucket uses a custom drop function to delete the element -->
     <div class="trash" data-bucket-id="4" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
         🗑️ Drop tasks here to Archive / Delete
-    </div>    
+    </div>
+
+    <!-- Task Edit & Delete Modal -->
+    <div id="taskEditModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Edit Task</h3>
+                <button type="button" class="modal-close-btn" onclick="closeEditTaskModal()">&times;</button>
+            </div>
+            <form id="editTaskForm" onsubmit="handleEditTaskSubmit(event)">
+                <input type="hidden" id="editTaskId" name="taskId" />
+
+                <div class="form-group">
+                    <label for="editTaskTitle">Title *</label>
+                    <input type="text" id="editTaskTitle" name="title" required placeholder="Task title" />
+                </div>
+
+                <div class="form-group">
+                    <label for="editTaskBody">Description</label>
+                    <textarea id="editTaskBody" name="body" rows="3" placeholder="Task description (optional)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="editTaskAssignee">Assignee</label>
+                    <input type="text" id="editTaskAssignee" name="assignee" placeholder="Assignee (optional)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="editTaskBucketId">Status / Column</label>
+                    <select id="editTaskBucketId" name="bucketId">
+                        <option value="1">To-Do</option>
+                        <option value="2">In Progress</option>
+                        <option value="3">Done</option>
+                        <option value="4">Trash / Archive</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-danger" onclick="handleDeleteTaskClick()">Delete Task</button>
+                    <div class="modal-actions-right">
+                        <button type="button" class="btn-secondary" onclick="closeEditTaskModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

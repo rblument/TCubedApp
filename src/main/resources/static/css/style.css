@@ -5,7 +5,7 @@ body { font-family: sans-serif; padding: 20px; }
         .container { background: #f4f5f7; width: 250px; padding: 15px; border-radius: 5px; min-height: 400px; display: flex; flex-direction: column; gap: 10px; }
         
         /* Task styling */
-        .task { background: white; padding: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); cursor: grab; }
+        .task { background: white; padding: 12px 28px 12px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); cursor: grab; position: relative; word-break: break-word; }
         .task:active { cursor: grabbing; }
         
         /* Trash bucket styling */
@@ -213,4 +213,662 @@ body { font-family: sans-serif; padding: 20px; }
     padding: 2px 6px;
     border-radius: 4px;
     margin-bottom: 4px;
+}
+
+/* Task Card Enhancements */
+.task-body {
+    margin: 6px 0;
+    font-size: 0.85rem;
+    color: #475569;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.btn-edit-task {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s, background-color 0.2s;
+    line-height: 1;
+}
+
+.btn-edit-task:hover {
+    opacity: 1;
+    background-color: #f1f5f9;
+}
+
+/* Toast Notification System (Sprint 4 Phase 2) */
+#toast-container,
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    min-width: 250px;
+    max-width: 380px;
+    padding: 12px 18px;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    border-left: 5px solid #172554;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.show,
+.toast.toast-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.toast.toast-hide {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.toast.toast-success {
+    border-left-color: #22c55e;
+    background-color: #f0fdf4;
+    color: #14532d;
+}
+
+.toast.toast-error {
+    border-left-color: #ef4444;
+    background-color: #fef2f2;
+    color: #991b1b;
+}
+
+.toast.toast-info {
+    border-left-color: #172554;
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+/* Modal Overlay & Card (Sprint 4 Phase 3) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: modalScaleIn 0.2s ease-out;
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 12px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #172554;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+    color: #0f172a;
+    background-color: #f1f5f9;
+}
+
+#editTaskForm {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#editTaskForm .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#editTaskForm label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #334155;
+}
+
+#editTaskForm input[type="text"],
+#editTaskForm textarea,
+#editTaskForm select {
+    padding: 9px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#editTaskForm input:focus,
+#editTaskForm textarea:focus,
+#editTaskForm select:focus {
+    border-color: #3b82f6;
+}
+
+#editTaskForm textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.modal-actions-right {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-secondary {
+    background-color: #e2e8f0;
+    color: #334155;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: #cbd5e1;
+}
+
+.btn-danger {
+    background-color: #e11d48;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+    background-color: #be123c;
+}
+
+/* Create Task Bar */
+.create-task-bar {
+    margin-bottom: 20px;
+}
+
+.create-task-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.create-task-form input,
+.create-task-form select {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.create-task-form input:focus,
+.create-task-form select:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+.btn-add-task {
+    background-color: #172554;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-add-task:hover {
+    background-color: #1e3a8a;
+}
+
+/* ==========================================================================
+   Project Workspace Administration UI (Sprint 4 Phase 4 / UC-2)
+   ========================================================================== */
+
+.workspace-header {
+    margin-bottom: 24px;
+}
+
+.workspace-header h2 {
+    color: #172554;
+    margin: 0 0 6px 0;
+    font-size: 1.75rem;
+}
+
+.workspace-subtitle {
+    color: #64748b;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Create Workspace Bar */
+.create-project-bar {
+    background: #ffffff;
+    padding: 18px 24px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 28px;
+}
+
+.create-project-form {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.create-project-inputs {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    min-width: 280px;
+    flex-wrap: wrap;
+}
+
+.create-project-inputs input {
+    flex: 1;
+    min-width: 180px;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.create-project-inputs input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.btn-create-project {
+    background-color: #172554;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.btn-create-project:hover {
+    background-color: #1e3a8a;
+}
+
+.btn-create-project:active {
+    transform: scale(0.98);
+}
+
+/* Empty State Message */
+.empty-state {
+    background: #ffffff;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    color: #64748b;
+    margin: 20px 0;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.empty-state h3 {
+    margin: 0 0 6px 0;
+    color: #172554;
+    font-size: 1.2rem;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Project Workspace Grid */
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 22px;
+}
+
+/* Project Card */
+.project-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 22px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    min-height: 180px;
+}
+
+.project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.project-card-badge {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.project-card-title {
+    margin: 0 0 8px 0;
+    font-size: 1.25rem;
+    color: #172554;
+    word-break: break-word;
+}
+
+.project-card-description {
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin: 0 0 18px 0;
+    flex: 1;
+    word-break: break-word;
+}
+
+/* Project Card Actions */
+.project-card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-open-board {
+    display: inline-flex;
+    align-items: center;
+    background-color: #172554;
+    color: white;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.btn-open-board:hover {
+    background-color: #1e3a8a;
+    color: white;
+}
+
+.btn-manage-workspace {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-manage-workspace:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+/* Administration Modal Specifics */
+.admin-modal-card {
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.admin-section {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 16px;
+}
+
+.admin-section-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95rem;
+    color: #172554;
+    font-weight: 700;
+}
+
+.admin-section-title code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+
+.add-member-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.add-member-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.add-member-form input:focus {
+    border-color: #3b82f6;
+}
+
+.btn-add-member {
+    background-color: #172554;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.btn-add-member:hover {
+    background-color: #1e3a8a;
+}
+
+/* Member List & Items */
+.member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    transition: background-color 0.15s;
+}
+
+.member-item:hover {
+    background: #f1f5f9;
+}
+
+.member-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #1e293b;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.member-icon {
+    font-size: 1rem;
+}
+
+.btn-remove-member {
+    background: transparent;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-remove-member:hover {
+    background-color: #ffe4e6;
+    color: #be123c;
+    border-color: #fca5a5;
+}
+
+.empty-members-note {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-style: italic;
+    margin: 8px 0;
+    text-align: center;
+}
+
+/* Danger Zone */
+.admin-section-danger {
+    background: #fff1f2;
+    border: 1px dashed #f43f5e;
+    border-radius: 6px;
+    padding: 14px 16px;
+}
+
+.danger-zone-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }

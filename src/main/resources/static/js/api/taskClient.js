@@ -40,7 +40,8 @@ async function updateTask(taskId, taskData) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to update task: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to update task: ${response.status}`);
     }
 
     return response.json();
@@ -53,9 +54,17 @@ async function deleteTask(taskId) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to delete task: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to delete task: ${response.status}`);
     }
 
     return true;
+}
+
+if (typeof window !== 'undefined') {
+    window.getAllTasks = getAllTasks;
+    window.getTaskById = getTaskById;
+    window.updateTask = updateTask;
+    window.deleteTask = deleteTask;
 }
 
