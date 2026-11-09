@@ -42,7 +42,7 @@ VALUES
 INSERT INTO PROJECT 
     (ProjectId, Name, Description, CreatedAt)
 VALUES
-    (1, 'TCubed Capstone',       'Primary project with multiple members, boards, buckets, and tasks.', '2026-01-15 08:00:00'),
+    (1, 'Capstone', 'Primary project with multiple members, boards, buckets, and tasks.', '2026-01-15 08:00:00'),
     (2, 'Security & Auth Audit', 'Secondary project restricted to Bob to test authorization boundaries.', '2026-01-16 10:30:00'),
     (3, 'Empty Sandbox Project', 'Project with zero boards and zero tasks to test empty-state rendering.', '2026-01-17 14:00:00');
 
