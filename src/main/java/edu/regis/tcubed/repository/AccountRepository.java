@@ -35,25 +35,27 @@ public class AccountRepository {
      */
     public Account authenticateUser(String username, String password) throws SQLException {  
         String hashedPassword = hashPassword(password);
+        
         try (Connection conn = connectionManager.getConnection()) {
-            String sql = "SELECT * FROM ACCOUNT WHERE UserId = ? AND (Password = ? OR Password = ?)";
+            String sql = "SELECT * FROM ACCOUNT WHERE UserId = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, username);
-                stmt.setString(2, hashedPassword);
-                stmt.setString(3, password);
                 ResultSet rs = stmt.executeQuery();
 
                 // If a user is found, map the database row to the new Account object
                 if (rs.next()) {
-                    return new Account(
-                        rs.getString("UserId"),
-                        rs.getString("Password"),
-                        rs.getString("FirstName"),
-                        rs.getString("LastName"),
-                        rs.getInt("Question"),
-                        rs.getString("Answer"),
-                        rs.getBoolean("IsStudent") // Automatically translates the TINYINT
-                    );
+                    String dbHash = rs.getString("Password");
+                    if (hashedPassword.equals(dbHash)) {
+                        return new Account(
+                            rs.getString("UserId"),
+                            dbHash,
+                            rs.getString("FirstName"),
+                            rs.getString("LastName"),
+                            rs.getInt("Question"),
+                            rs.getString("Answer"),
+                            rs.getBoolean("IsStudent")
+                        );
+                    }
                 }
             }
         }

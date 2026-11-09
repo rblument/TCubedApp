@@ -42,10 +42,8 @@ CREATE TABLE PROJECT_MEMBER (
     ProjectId INT NOT NULL,
 
     PRIMARY KEY (UserId, ProjectId),
-    FOREIGN KEY (UserId)
-        REFERENCES ACCOUNT(UserId),
-    FOREIGN KEY (ProjectId)
-        REFERENCES PROJECT(ProjectId)
+    FOREIGN KEY (UserId) REFERENCES ACCOUNT(UserId),
+    FOREIGN KEY (ProjectId) REFERENCES PROJECT(ProjectId)
 );
 
 CREATE TABLE BOARD (
@@ -54,8 +52,7 @@ CREATE TABLE BOARD (
     Description TEXT,
     ProjectId INT NOT NULL,
 
-    FOREIGN KEY (ProjectId)
-        REFERENCES PROJECT(ProjectId)
+    FOREIGN KEY (ProjectId) REFERENCES PROJECT(ProjectId)
 );
 
 CREATE TABLE BUCKET (
@@ -64,8 +61,7 @@ CREATE TABLE BUCKET (
     Position INT,
     BoardId INT NOT NULL,
 
-    FOREIGN KEY (BoardId)
-        REFERENCES BOARD(BoardId)
+    FOREIGN KEY (BoardId) REFERENCES BOARD(BoardId)
 );
 
 CREATE TABLE TASK (
@@ -74,16 +70,15 @@ CREATE TABLE TASK (
     Body TEXT,
     Position INT,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     BucketId INT NOT NULL,
     Assignee VARCHAR(256),
 
-    FOREIGN KEY (BucketId)
-        REFERENCES BUCKET(BucketId)
+    FOREIGN KEY (BucketId) REFERENCES BUCKET(BucketId),
+    FOREIGN KEY (Assignee) REFERENCES ACCOUNT(UserId)
 );
--- Password encoding should be SHA-256, not in the clear.
+
 INSERT INTO ACCOUNT 
   (UserId, Password, FirstName, LastName, Question, Answer, IsStudent)
  VALUES
-  ('test@regis.edu', 'TestP@ss', 'Testy', 'McTest', 0, 'Denver', 1);
+  ('test@regis.edu', SHA2('TestP@ss', 256), 'Testy', 'McTest', 0, 'Denver', 1);
