@@ -41,6 +41,10 @@ public class TaskApiController {
     public ResponseEntity<?> list(HttpSession session)
             throws SQLException {
 
+        if (user(session) == null) {
+            return ResponseEntity.status(401).body("Authentication required");
+        }
+
         if (project(session) == null) {
             return ResponseEntity.badRequest()
                     .body("Select an active project first");
@@ -60,9 +64,8 @@ public class TaskApiController {
             @PathVariable int id,
             HttpSession session) throws SQLException {
 
-        if (project(session) == null) {
-            return ResponseEntity.badRequest()
-                    .body("Select an active project first");
+        if (user(session) == null) {
+            return ResponseEntity.status(401).body("Authentication required");
         }
 
         Task task = repository.findTaskForMember(
@@ -83,9 +86,8 @@ public class TaskApiController {
             @RequestBody Task task,
             HttpSession session) throws SQLException {
 
-        if (project(session) == null) {
-            return ResponseEntity.badRequest()
-                    .body("Select an active project first");
+        if (user(session) == null) {
+            return ResponseEntity.status(401).body("Authentication required");
         }
 
         if (task == null
@@ -114,9 +116,8 @@ public class TaskApiController {
             @PathVariable int id,
             HttpSession session) throws SQLException {
 
-        if (project(session) == null) {
-            return ResponseEntity.badRequest()
-                    .body("Select an active project first");
+        if (user(session) == null) {
+            return ResponseEntity.status(401).body("Authentication required");
         }
 
         return repository.deleteTaskForMember(

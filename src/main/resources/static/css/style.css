@@ -5,7 +5,7 @@ body { font-family: sans-serif; padding: 20px; }
         .container { background: #f4f5f7; width: 250px; padding: 15px; border-radius: 5px; min-height: 400px; display: flex; flex-direction: column; gap: 10px; }
         
         /* Task styling */
-        .task { background: white; padding: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); cursor: grab; }
+        .task { background: white; padding: 12px 28px 12px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); cursor: grab; position: relative; word-break: break-word; }
         .task:active { cursor: grabbing; }
         
         /* Trash bucket styling */
@@ -213,4 +213,301 @@ body { font-family: sans-serif; padding: 20px; }
     padding: 2px 6px;
     border-radius: 4px;
     margin-bottom: 4px;
+}
+
+/* Task Card Enhancements */
+.task-body {
+    margin: 6px 0;
+    font-size: 0.85rem;
+    color: #475569;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.btn-edit-task {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s, background-color 0.2s;
+    line-height: 1;
+}
+
+.btn-edit-task:hover {
+    opacity: 1;
+    background-color: #f1f5f9;
+}
+
+/* Toast Notification System (Sprint 4 Phase 2) */
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    min-width: 250px;
+    max-width: 380px;
+    padding: 12px 18px;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    border-left: 5px solid #172554;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.toast.toast-hide {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.toast.toast-success {
+    border-left-color: #22c55e;
+    background-color: #f0fdf4;
+    color: #14532d;
+}
+
+.toast.toast-error {
+    border-left-color: #ef4444;
+    background-color: #fef2f2;
+    color: #991b1b;
+}
+
+.toast.toast-info {
+    border-left-color: #172554;
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+/* Modal Overlay & Card (Sprint 4 Phase 3) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: modalScaleIn 0.2s ease-out;
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 12px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #172554;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+    color: #0f172a;
+    background-color: #f1f5f9;
+}
+
+#editTaskForm {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#editTaskForm .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#editTaskForm label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #334155;
+}
+
+#editTaskForm input[type="text"],
+#editTaskForm textarea,
+#editTaskForm select {
+    padding: 9px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#editTaskForm input:focus,
+#editTaskForm textarea:focus,
+#editTaskForm select:focus {
+    border-color: #3b82f6;
+}
+
+#editTaskForm textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.modal-actions-right {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-secondary {
+    background-color: #e2e8f0;
+    color: #334155;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: #cbd5e1;
+}
+
+.btn-danger {
+    background-color: #e11d48;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+    background-color: #be123c;
+}
+
+/* Create Task Bar */
+.create-task-bar {
+    margin-bottom: 20px;
+}
+
+.create-task-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.create-task-form input,
+.create-task-form select {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.create-task-form input:focus,
+.create-task-form select:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+.btn-add-task {
+    background-color: #172554;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-add-task:hover {
+    background-color: #1e3a8a;
 }
