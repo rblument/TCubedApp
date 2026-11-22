@@ -13,7 +13,7 @@ To maintain consistency across frontend and backend development, the team has ag
 
 ## ⚙️ Functional Requirements
 * **Authentication & Session:** Users authenticate against the `Account` table. The active user identifier is stored in `HttpSession` to persist across views and handle session termination via `/logout`.
-* **Routing:** Upon successful login, users are redirected to a Project Selection view (`/projects`) before accessing the board dashboard (`/dashboard`).
+* **Routing:** Upon successful login, users are redirected to the my tasks view (`/my-tasks`) before accessing the board dashboard (`/dashboard`).
 * **Interactive UI:** Users can move Containers between status columns and into the Trash Bucket using native HTML5 drag-and-drop.
 * **Modular View Architecture:** Global UI components (navigation bar, user profile dropdown) are centralized using Thymeleaf fragments, with presentation styling isolated in a shared stylesheet.
 * **Cross-Platform Compatibility:** The project builds cleanly across macOS and Windows development environments using Maven profile overrides for local build targets.
@@ -21,6 +21,41 @@ To maintain consistency across frontend and backend development, the team has ag
 ---
 
 ## 📝 Changelog
+
+### [Sprint 4] - Project Workspace Administration (UC-2), Task CRUD Modal, DB Seeding, & Automated Testing
+
+#### Added
+* **Automated Test Suite (`src/test/`):** Added JUnit test classes (`ProjectApiControllerTest`, `TaskApiControllerTest`, `ProjectRepositoryTest`, and `TaskRepositoryTest`) and updated `pom.xml` with test dependencies (PR #18).
+* **Database Seeding & Documentation:** Added `database/SeedDB.sql` for unit-testing seed data and committed `docs/TCubed Software Requirements Specification.pdf` (PR #16).
+* **Task Edit/Delete Modal CRUD:** Implemented full modal-based task editing and deletion across `TaskApiController.java`, `TaskRepository.java`, `boardClient.js`, `taskClient.js`, `dashboard.html`, and `my-tasks.html` (PR #17).
+* **Toast Notification System:** Added unified toast notifications across the board and project management views (`style.css`, `boardClient.js`, `projectClient.js`, `dashboard.html`, `my-tasks.html`, `projects.html`) (PR #17).
+* **Project Workspace Administration (UC-2):** Built out full project administration UI and backend endpoints across `ProjectApiController.java`, `ProjectRepository.java`, `projectClient.js`, and `projects.html` (PR #17).
+
+#### Changed & Enhanced
+* **Authentication & Schema Hardening:** Updated `AccountRepository.java` with SHA-256 password hashing and removed plaintext fallback. Updated `database/SetupDB.sql` (PR #16).
+* **Task API Controller:** Expanded `TaskApiController.java` to support modal CRUD operations and automated API test coverage (PR #17, PR #18).
+* **Test Directory Cleanup:** Corrected the repository test package directory path from `respository` to `repository` for `ProjectRepositoryTest` and `TaskRepositoryTest` (PR #18).
+
+#### Fixed
+* **Password Case Sensitivity:** Fixed case-insensitive password matching in `AccountRepository.java` so passwords are now enforced as case-sensitive (PR #16).
+* **Seed Project Naming:** Aligned the seed project name in `database/SeedDB.sql` with `/dashboard` route expectations (PR #16).
+* **My Tasks Assignee & Project Resolution:** Fixed assignee resolution in `BoardController.java` and project name handling in `TaskRepository.java` (PR #17).
+
+### [Sprint 3] - Account Creation, Full-Stack Task Pipeline, & Unified Dashboard
+
+#### Added
+* `src/main/resources/templates/register.html`: Scaffolded full Account Creation UI (UC-1) with form validation.
+* `src/main/resources/templates/my-tasks.html`: Implemented a unified personal dashboard displaying all tasks assigned to the active user across multiple projects.
+* **REST API:** Created `POST /api/tasks` in `BoardController` to handle asynchronous task creation and database insertion.
+* **Database Integration:** Implemented `createTask`, `updateTaskPosition`, and `getTasksByAssignee` in `TaskRepository`. Added an auto-initialization helper to guarantee required `PROJECT`, `BOARD`, and `BUCKET` hierarchies exist prior to task insertion.
+
+#### Changed & Enhanced
+* `AuthController`: Added `GET /register` and `POST /register` with validation logic. Redirected post-login routing from `/projects` to `/my-tasks`.
+* `AccountRepository`: Implemented SHA-256 password hashing for new accounts, retaining hybrid fallback support for plaintext legacy seed accounts.
+* `boardClient.js`: Added `createTask` fetch logic and dynamic DOM rendering (`appendTaskToBoard`) to update the Kanban board without page reloads.
+
+#### Fixed
+* **Cross-Project Data Bleed:** Modified `TaskRepository` to generate unique `BUCKET` IDs per project board rather than relying on global IDs (1-4), ensuring tasks remain isolated to their respective project workspaces.
 
 ### [Sprint 2] - Domain Alignment, REST API, & Session Security
 
@@ -71,19 +106,3 @@ To maintain consistency across frontend and backend development, the team has ag
 #### Infrastructure & Backend (Team Synced)
 * `pom.xml`: Integrated Java 17 and Spring Boot 3.2.0 properties, standard main class configuration, and the `windows-onedrive-fix` Maven build profile.
 * `database/SetupDB.sql`: (In progress - Dylan) Relational schema design and ER diagram modeling for Task and Sprint persistence.
-
-### [Sprint 3] - Account Creation, Full-Stack Task Pipeline, & Unified Dashboard
-
-#### Added
-* `src/main/resources/templates/register.html`: Scaffolded full Account Creation UI (UC-1) with form validation.
-* `src/main/resources/templates/my-tasks.html`: Implemented a unified personal dashboard displaying all tasks assigned to the active user across multiple projects.
-* **REST API:** Created `POST /api/tasks` in `BoardController` to handle asynchronous task creation and database insertion.
-* **Database Integration:** Implemented `createTask`, `updateTaskPosition`, and `getTasksByAssignee` in `TaskRepository`. Added an auto-initialization helper to guarantee required `PROJECT`, `BOARD`, and `BUCKET` hierarchies exist prior to task insertion.
-
-#### Changed & Enhanced
-* `AuthController`: Added `GET /register` and `POST /register` with validation logic. Redirected post-login routing from `/projects` to `/my-tasks`.
-* `AccountRepository`: Implemented SHA-256 password hashing for new accounts, retaining hybrid fallback support for plaintext legacy seed accounts.
-* `boardClient.js`: Added `createTask` fetch logic and dynamic DOM rendering (`appendTaskToBoard`) to update the Kanban board without page reloads.
-
-#### Fixed
-* **Cross-Project Data Bleed:** Modified `TaskRepository` to generate unique `BUCKET` IDs per project board rather than relying on global IDs (1-4), ensuring tasks remain isolated to their respective project workspaces.
