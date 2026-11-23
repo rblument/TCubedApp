@@ -26,7 +26,7 @@ public class AccountRepository {
 
     /**
      * Authenticates a user by checking their UserId and matching either the SHA-256 hashed
-     * password or plaintext password (for legacy seed data compatibility).
+     * password.
      *
      * @param username the user ID / email
      * @param password the raw password entered by the user
