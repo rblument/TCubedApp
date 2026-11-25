@@ -80,6 +80,10 @@ function appendTaskToBoard(task) {
     taskDiv.setAttribute('data-task-body', task.body || '');
     taskDiv.setAttribute('data-task-assignee', task.assignee || '');
     taskDiv.setAttribute('data-bucket-id', task.bucketId || 1);
+    if (task.projectName) {
+        taskDiv.setAttribute('data-project-name', task.projectName);
+        taskDiv.dataset.projectName = task.projectName;
+    }
 
     taskDiv.dataset.taskId = task.taskId;
     taskDiv.dataset.taskTitle = task.title || '';
@@ -123,7 +127,7 @@ function appendTaskToBoard(task) {
     const assigneeSmall = document.createElement('small');
     assigneeSmall.className = 'task-assignee';
     assigneeSmall.style.color = 'gray';
-    assigneeSmall.textContent = task.assignee || '';
+    assigneeSmall.textContent = task.assignee || 'Unassigned';
     taskDiv.appendChild(assigneeSmall);
 
     targetBucket.appendChild(taskDiv);
@@ -143,10 +147,10 @@ function handleCreateTaskSubmit(event) {
     const bucketInput = document.getElementById('taskBucketId');
 
     const payload = {
-        title: titleInput.value.trim(),
-        body: bodyInput.value.trim(),
-        assignee: assigneeInput.value.trim(),
-        bucketId: parseInt(bucketInput.value, 10) || 1
+        title: titleInput ? titleInput.value.trim() : '',
+        body: bodyInput ? bodyInput.value.trim() : '',
+        assignee: assigneeInput.value || null,
+        bucketId: bucketInput ? (parseInt(bucketInput.value, 10) || 1) : 1
     };
 
     if (!payload.title) return;
@@ -205,7 +209,7 @@ let currentEditingTaskElement = null;
  *
  * @param {HTMLElement} taskElement the .task DOM element being edited
  */
-function openEditTaskModal(taskElement) {
+async function openEditTaskModal(taskElement) {
     if (!taskElement) return;
     currentEditingTaskElement = taskElement;
 
@@ -222,11 +226,11 @@ function openEditTaskModal(taskElement) {
         taskBody = bodyP ? bodyP.textContent.trim() : '';
     }
 
-    let taskAssignee = taskElement.getAttribute('data-task-assignee');
-    if (taskAssignee === null || taskAssignee === undefined) {
-        const assigneeSmall = taskElement.querySelector('.task-assignee') || taskElement.querySelector('small');
-        taskAssignee = assigneeSmall ? assigneeSmall.textContent.trim() : '';
+    let currentAssignee = taskElement.getAttribute('data-task-assignee') || '';
+    if (currentAssignee === 'Unassigned') {
+        currentAssignee = '';
     }
+    const projectName = taskElement.getAttribute('data-project-name') || '';
 
     let bucketId = taskElement.getAttribute('data-bucket-id');
     if (!bucketId) {
@@ -239,14 +243,65 @@ function openEditTaskModal(taskElement) {
     const idInput = document.getElementById('editTaskId');
     const titleInput = document.getElementById('editTaskTitle');
     const bodyInput = document.getElementById('editTaskBody');
-    const assigneeInput = document.getElementById('editTaskAssignee');
+    const assigneeSelect = document.getElementById('editTaskAssignee');
     const bucketInput = document.getElementById('editTaskBucketId');
 
     if (idInput) idInput.value = taskId;
     if (titleInput) titleInput.value = taskTitle;
     if (bodyInput) bodyInput.value = taskBody;
-    if (assigneeInput) assigneeInput.value = taskAssignee;
     if (bucketInput) bucketInput.value = bucketId || '1';
+
+    if (assigneeSelect) {
+        // If on /my-tasks and a different project was previously loaded, reset options to default
+        const isMyTasks = !document.getElementById('taskAssignee');
+        if (isMyTasks && assigneeSelect.dataset.loadedProject && assigneeSelect.dataset.loadedProject !== projectName) {
+            assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+            delete assigneeSelect.dataset.loadedProject;
+        }
+
+        // If #editTaskAssignee only has the default "Unassigned" option (such as on /my-tasks) and projectName is present
+        const hasOnlyDefault = assigneeSelect.options.length <= 1;
+        if (hasOnlyDefault && projectName) {
+            try {
+                const response = await fetch(`/api/projects/members/by-name?projectName=${encodeURIComponent(projectName)}`);
+                if (response.ok) {
+                    const members = await response.json();
+                    assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+                    if (Array.isArray(members)) {
+                        members.forEach(member => {
+                            const opt = document.createElement('option');
+                            opt.value = member.userId;
+                            opt.textContent = `${member.firstName} ${member.lastName} (${member.userId})`;
+                            assigneeSelect.appendChild(opt);
+                        });
+                    }
+                    assigneeSelect.dataset.loadedProject = projectName;
+                }
+            } catch (err) {
+                console.error('Error fetching project members:', err);
+            }
+        }
+
+        // If currentAssignee is non-empty and not in the dropdown options (edge case), append a temporary fallback <option>
+        if (currentAssignee) {
+            let found = false;
+            for (let i = 0; i < assigneeSelect.options.length; i++) {
+                if (assigneeSelect.options[i].value === currentAssignee) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const fallbackOpt = document.createElement('option');
+                fallbackOpt.value = currentAssignee;
+                fallbackOpt.textContent = currentAssignee;
+                assigneeSelect.appendChild(fallbackOpt);
+            }
+            assigneeSelect.value = currentAssignee;
+        } else {
+            assigneeSelect.value = '';
+        }
+    }
 
     const modal = document.getElementById('taskEditModal');
     if (modal) {
@@ -267,6 +322,14 @@ function closeEditTaskModal() {
     if (form) {
         form.reset();
     }
+    // On /my-tasks (where taskAssignee create input does not exist), reset #editTaskAssignee back to default
+    if (!document.getElementById('taskAssignee')) {
+        const assigneeSelect = document.getElementById('editTaskAssignee');
+        if (assigneeSelect) {
+            assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+            delete assigneeSelect.dataset.loadedProject;
+        }
+    }
 }
 
 /**
@@ -279,7 +342,9 @@ async function handleEditTaskSubmit(event) {
     const taskId = document.getElementById('editTaskId').value;
     const title = document.getElementById('editTaskTitle').value.trim();
     const body = document.getElementById('editTaskBody').value.trim();
-    const assignee = document.getElementById('editTaskAssignee').value.trim();
+    const assigneeSelect = document.getElementById('editTaskAssignee');
+    const rawAssignee = assigneeSelect ? assigneeSelect.value.trim() : '';
+    const assignee = (rawAssignee === '' || rawAssignee === 'Unassigned') ? null : rawAssignee;
     const bucketId = parseInt(document.getElementById('editTaskBucketId').value, 10) || 1;
 
     if (!taskId || !title) return;
@@ -304,6 +369,10 @@ async function handleEditTaskSubmit(event) {
             taskElement.setAttribute('data-task-body', updatedTask.body || '');
             taskElement.setAttribute('data-task-assignee', updatedTask.assignee || '');
             taskElement.setAttribute('data-bucket-id', updatedTask.bucketId);
+            if (updatedTask.projectName) {
+                taskElement.setAttribute('data-project-name', updatedTask.projectName);
+                taskElement.dataset.projectName = updatedTask.projectName;
+            }
 
             taskElement.dataset.taskId = updatedTask.taskId;
             taskElement.dataset.taskTitle = updatedTask.title || '';
@@ -336,7 +405,7 @@ async function handleEditTaskSubmit(event) {
 
             const assigneeSmall = taskElement.querySelector('.task-assignee') || taskElement.querySelector('small');
             if (assigneeSmall) {
-                assigneeSmall.textContent = updatedTask.assignee || '';
+                assigneeSmall.textContent = updatedTask.assignee || 'Unassigned';
             }
 
             const targetBucketId = parseInt(updatedTask.bucketId, 10);

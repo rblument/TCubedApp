@@ -1,5 +1,6 @@
 package edu.regis.tcubed.controller;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Project;
 import edu.regis.tcubed.repository.ProjectRepository;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -149,4 +150,63 @@ class ProjectApiControllerTest {
         verify(repository).removeProjectMember(7, "teammate@example.com", "user@example.com");
     }
 
+    @Test
+    void getMembersByNameUnauthenticatedIsRejected() throws Exception {
+        mvc.perform(get("/api/projects/members/by-name").param("projectName", "Capstone"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void getMembersByNameReturnsMembersForAuthorizedUser() throws Exception {
+        when(repository.getProjectsByUserId("user@example.com"))
+                .thenReturn(List.of(new Project(1, "Capstone", "Workspace")));
+
+        Account a1 = new Account();
+        a1.setUserId("user@example.com");
+        a1.setFirstName("Oscar");
+        a1.setLastName("Castillo");
+
+        Account a2 = new Account();
+        a2.setUserId("dylan@example.com");
+        a2.setFirstName("Dylan");
+        a2.setLastName("Cassagnol");
+
+        when(repository.getProjectMemberAccountsByProjectName("Capstone"))
+                .thenReturn(List.of(a1, a2));
+
+        mvc.perform(get("/api/projects/members/by-name")
+                .param("projectName", "Capstone")
+                .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].userId").value("user@example.com"))
+                .andExpect(jsonPath("$[0].firstName").value("Oscar"))
+                .andExpect(jsonPath("$[0].lastName").value("Castillo"))
+                .andExpect(jsonPath("$[1].userId").value("dylan@example.com"))
+                .andExpect(jsonPath("$[1].firstName").value("Dylan"))
+                .andExpect(jsonPath("$[1].lastName").value("Cassagnol"));
+
+        verify(repository).getProjectMemberAccountsByProjectName("Capstone");
+    }
+
+    @Test
+    void getMembersByNameForbiddenWhenUserNotMember() throws Exception {
+        when(repository.getProjectsByUserId("user@example.com"))
+                .thenReturn(List.of(new Project(1, "OtherProject", "Workspace")));
+        when(repository.getProjectMemberAccountsByProjectName("SecretProject"))
+                .thenReturn(List.of());
+
+        mvc.perform(get("/api/projects/members/by-name")
+                .param("projectName", "SecretProject")
+                .session(session))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getMembersByNameRejectsBlankProjectName() throws Exception {
+        mvc.perform(get("/api/projects/members/by-name")
+                .param("projectName", "   ")
+                .session(session))
+                .andExpect(status().isBadRequest());
+    }
 }

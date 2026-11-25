@@ -1,6 +1,8 @@
 package edu.regis.tcubed.controller;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Task;
+import edu.regis.tcubed.repository.ProjectRepository;
 import edu.regis.tcubed.repository.TaskRepository;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ import java.util.List;
 public class BoardController {
 
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
 
     private final List<Task> mockTasks = new ArrayList<>(List.of(
         new Task(101, "Draft ER Diagram", "Design the MySQL schema", 1, 1, "Dylan"),
@@ -33,8 +36,9 @@ public class BoardController {
     ));
 
     @Autowired
-    public BoardController(TaskRepository taskRepository) {
+    public BoardController(TaskRepository taskRepository, ProjectRepository projectRepository) {
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
     }
 
     /**
@@ -53,6 +57,17 @@ public class BoardController {
         }
         session.setAttribute("activeProjectId", activeProject);
         model.addAttribute("projectName", activeProject);
+
+        List<Account> projectMembers;
+        try {
+            projectMembers = projectRepository.getProjectMemberAccountsByProjectName(activeProject);
+            if (projectMembers == null) {
+                projectMembers = List.of();
+            }
+        } catch (SQLException e) {
+            projectMembers = List.of();
+        }
+        model.addAttribute("projectMembers", projectMembers);
 
         try {
             List<Task> dbTasks = taskRepository.getTasksByProjectName(activeProject);
@@ -115,8 +130,7 @@ public class BoardController {
         }
 
         if (newTask.getAssignee() == null || newTask.getAssignee().isBlank()) {
-            String sessionUserId = (String) session.getAttribute("userId");
-            newTask.setAssignee(sessionUserId != null && !sessionUserId.isBlank() ? sessionUserId : null);
+            newTask.setAssignee(null);
         }
 
         String activeProject = (String) session.getAttribute("activeProjectId");

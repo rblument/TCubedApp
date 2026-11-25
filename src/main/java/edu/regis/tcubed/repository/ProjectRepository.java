@@ -1,5 +1,6 @@
 package edu.regis.tcubed.repository;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Project;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -450,5 +451,45 @@ public class ProjectRepository {
                 return deleteStmt.executeUpdate() > 0;
             }
         }
+    }
+
+    /**
+     * Retrieves member accounts for a project identified by project name, ordered by first and last name.
+     * Leaves sensitive security fields (password and security answer) as null.
+     *
+     * @param projectName the unique name of the project
+     * @return list of member {@link Account} objects
+     * @throws SQLException if a database operation fails
+     */
+    public List<Account> getProjectMemberAccountsByProjectName(String projectName) throws SQLException {
+        List<Account> accounts = new ArrayList<>();
+        if (projectName == null || projectName.isBlank()) {
+            return accounts;
+        }
+
+        String sql = "SELECT a.UserId, a.FirstName, a.LastName, a.IsStudent "
+                   + "FROM ACCOUNT a "
+                   + "JOIN PROJECT_MEMBER pm ON a.UserId = pm.UserId "
+                   + "JOIN PROJECT p ON pm.ProjectId = p.ProjectId "
+                   + "WHERE p.Name = ? "
+                   + "ORDER BY a.FirstName ASC, a.LastName ASC";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, projectName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Account account = new Account();
+                    account.setUserId(rs.getString("UserId"));
+                    account.setFirstName(rs.getString("FirstName"));
+                    account.setLastName(rs.getString("LastName"));
+                    account.setStudent(rs.getBoolean("IsStudent"));
+                    accounts.add(account);
+                }
+            }
+        }
+
+        return accounts;
     }
 }

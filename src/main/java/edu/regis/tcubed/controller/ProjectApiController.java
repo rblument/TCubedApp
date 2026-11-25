@@ -1,5 +1,6 @@
 package edu.regis.tcubed.controller;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Project;
 import edu.regis.tcubed.repository.ProjectRepository;
 
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -268,5 +270,43 @@ public class ProjectApiController {
         }
 
         return ResponseEntity.ok(repository.getProjectMembers(id, user(session)));
+    }
+
+    /**
+     * Retrieves member accounts for a project workspace specified by project name.
+     * Verifies that the requesting user is an authorized member of that project workspace.
+     *
+     * @param projectName the name of the project workspace
+     * @param session     the current HTTP session
+     * @return 200 OK with list of member accounts, 401 if unauthenticated, or 403 if unauthorized
+     * @throws SQLException if a database error occurs
+     */
+    @GetMapping("/members/by-name")
+    public ResponseEntity<?> getMembersByProjectName(
+            @RequestParam String projectName,
+            HttpSession session) throws SQLException {
+
+        if (user(session) == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (projectName == null || projectName.isBlank()) {
+            return ResponseEntity.badRequest().body("Project name is required");
+        }
+
+        String requestingUser = user(session);
+        List<Project> userProjects = repository.getProjectsByUserId(requestingUser);
+        boolean isMember = userProjects != null && userProjects.stream()
+                .anyMatch(p -> p.getName() != null && p.getName().equalsIgnoreCase(projectName.trim()));
+
+        if (!isMember) {
+            List<Account> members = repository.getProjectMemberAccountsByProjectName(projectName.trim());
+            if (members != null && members.stream().anyMatch(m -> m.getUserId() != null && m.getUserId().equalsIgnoreCase(requestingUser))) {
+                return ResponseEntity.ok(members);
+            }
+            return ResponseEntity.status(403).body("Not authorized for this project");
+        }
+
+        return ResponseEntity.ok(repository.getProjectMemberAccountsByProjectName(projectName.trim()));
     }
 }
