@@ -171,12 +171,13 @@ function handleCreateTaskSubmit(event) {
  * Persists a task drag-and-drop movement by calling the REST API.
  * Updates the task's bucket and vertical position.
  *
- * @param {number|string} taskId      the ID of the task being moved
- * @param {number}        newBucketId the target destination bucket ID
- * @param {number}        newPosition the vertical position index in the destination bucket
+ * @param {number|string} taskId        the ID of the task being moved
+ * @param {number}        newBucketId   the target destination bucket ID
+ * @param {number}        newPosition   the vertical position index in the destination bucket
+ * @param {boolean}       suppressToast whether to omit toast notifications
  * @returns {Promise<void>}
  */
-function persistTaskMove(taskId, newBucketId, newPosition) {
+function persistTaskMove(taskId, newBucketId, newPosition, suppressToast = false) {
     return fetch(`/api/tasks/${taskId}/move?newBucketId=${newBucketId}&newPosition=${newPosition}`, {
         method: 'PUT',
         headers: {
@@ -187,9 +188,11 @@ function persistTaskMove(taskId, newBucketId, newPosition) {
         if (!response.ok) {
             console.error("Failed to persist task movement in the database.");
             showToast('Failed to move task', 'error');
-        } else {
+        } else if (!suppressToast) {
             if (parseInt(newBucketId, 10) === 4) {
-                showToast('Task archived to Trash', 'info');
+                showToast('Task moved to Trash (kept for 7 days)', 'info');
+            } else if (parseInt(newBucketId, 10) >= 5) {
+                showToast('Task moved to Archive folder', 'info');
             } else {
                 showToast('Task moved', 'success');
             }
@@ -409,18 +412,36 @@ async function handleEditTaskSubmit(event) {
             }
 
             const targetBucketId = parseInt(updatedTask.bucketId, 10);
-            if (targetBucketId === 4) {
+            let feedbackToast = 'Task updated successfully!';
+            let toastType = 'success';
+
+            if (targetBucketId >= 4) {
                 taskElement.remove();
+                if (targetBucketId === 4) {
+                    const badge = document.getElementById('trashCountBadge');
+                    if (badge) {
+                        const count = parseInt(badge.textContent, 10) || 0;
+                        badge.textContent = count + 1;
+                    }
+                    feedbackToast = 'Task moved to Trash (kept for 7 days)';
+                    toastType = 'info';
+                } else {
+                    feedbackToast = 'Task moved to Archive folder';
+                    toastType = 'info';
+                }
             } else if (targetBucketId >= 1 && targetBucketId <= 3) {
                 const targetBucket = document.querySelector(`.container[data-bucket-id="${targetBucketId}"]`);
                 if (targetBucket && taskElement.parentNode !== targetBucket) {
                     targetBucket.appendChild(taskElement);
                 }
             }
-        }
 
-        closeEditTaskModal();
-        showToast('Task updated successfully!', 'success');
+            closeEditTaskModal();
+            showToast(feedbackToast, toastType);
+        } else {
+            closeEditTaskModal();
+            showToast('Task updated successfully!', 'success');
+        }
     } catch (error) {
         console.error('Error updating task:', error);
         showToast(error.message || 'Failed to update task', 'error');
@@ -450,20 +471,638 @@ async function handleDeleteTaskClick() {
     }
 }
 
+/**
+ * Helper to retrieve active project name from the DOM.
+ */
+function getCurrentProjectName() {
+    const input = document.getElementById('currentProjectName');
+    if (input && input.value) return input.value.trim();
+    const h2 = document.querySelector('.board-header-row h2');
+    if (h2) {
+        return h2.textContent.replace(' Board', '').trim();
+    }
+    return 'Capstone';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+/**
+ * Dynamically appends a new archive folder option to #editTaskBucketId if not present.
+ */
+function addArchiveFolderOption(position, name) {
+    const select = document.getElementById('editTaskBucketId');
+    if (!select) return;
+    const posStr = String(position);
+    for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === posStr) {
+            return;
+        }
+    }
+    const option = document.createElement('option');
+    option.value = posStr;
+    option.textContent = `📁 Archive: ${name}`;
+    select.appendChild(option);
+}
+
+// ----------------- Trash Modal Logic -----------------
+
+let currentTrashedTasks = [];
+
+/**
+ * Opens the Trash modal and loads trashed tasks.
+ */
+function openTrashModal() {
+    const modal = document.getElementById('trashModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadTrashTasks();
+    }
+}
+
+/**
+ * Closes the Trash modal.
+ */
+function closeTrashModal() {
+    const modal = document.getElementById('trashModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Fetches trashed tasks from the backend and renders them.
+ */
+async function loadTrashTasks() {
+    const listContainer = document.getElementById('trashList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '<p class="modal-loading-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 12px;">Loading trashed tasks...</p>';
+
+    const projectName = getCurrentProjectName();
+    try {
+        const response = await fetch(`/api/workspace/trash?projectName=${encodeURIComponent(projectName)}`);
+        if (!response.ok) {
+            throw new Error('Failed to load trashed tasks.');
+        }
+        currentTrashedTasks = await response.json();
+        renderTrashList(currentTrashedTasks);
+
+        const badge = document.getElementById('trashCountBadge');
+        if (badge) {
+            badge.textContent = currentTrashedTasks.length;
+        }
+    } catch (err) {
+        console.error('Error loading trash tasks:', err);
+        listContainer.innerHTML = '<p class="modal-error-note" style="color: #ef4444; font-size: 0.9rem; text-align: center; padding: 12px;">Could not load trash tasks.</p>';
+    }
+}
+
+/**
+ * Renders the trashed tasks list.
+ */
+function renderTrashList(tasks) {
+    const listContainer = document.getElementById('trashList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (!tasks || tasks.length === 0) {
+        listContainer.innerHTML = '<p class="empty-list-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 16px;">Trash is empty.</p>';
+        return;
+    }
+
+    tasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'trash-item';
+        item.id = `trash-item-${task.taskId}`;
+
+        const details = document.createElement('div');
+        details.className = 'trash-item-details';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'trash-item-title';
+        titleDiv.innerHTML = `<strong>#${task.taskId}</strong> ${escapeHtml(task.title)}`;
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'trash-item-meta';
+
+        const assigneeSpan = document.createElement('span');
+        assigneeSpan.textContent = `👤 ${task.assignee || 'Unassigned'}`;
+
+        const retentionBadge = document.createElement('span');
+        retentionBadge.className = 'retention-badge';
+        const days = task.daysRemaining != null ? task.daysRemaining : 7;
+        retentionBadge.textContent = `Expires in ${days} day(s)`;
+
+        metaDiv.appendChild(assigneeSpan);
+        metaDiv.appendChild(retentionBadge);
+        details.appendChild(titleDiv);
+        details.appendChild(metaDiv);
+
+        const actions = document.createElement('div');
+        actions.className = 'trash-item-actions';
+
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn-restore';
+        restoreBtn.textContent = '↩️ Restore';
+        restoreBtn.onclick = () => restoreTrashTask(task.taskId);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn-delete-forever';
+        deleteBtn.textContent = 'Delete Forever';
+        deleteBtn.onclick = () => deleteForeverTrashTask(task.taskId);
+
+        actions.appendChild(restoreBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(details);
+        item.appendChild(actions);
+        listContainer.appendChild(item);
+    });
+}
+
+/**
+ * Restores a trashed task back to the To-Do column (Bucket 1).
+ */
+async function restoreTrashTask(taskId) {
+    const task = (currentTrashedTasks || []).find(t => t.taskId === taskId);
+    try {
+        await persistTaskMove(taskId, 1, 0, true);
+        const item = document.getElementById(`trash-item-${taskId}`);
+        if (item) item.remove();
+
+        const badge = document.getElementById('trashCountBadge');
+        if (badge) {
+            const count = Math.max(0, (parseInt(badge.textContent, 10) || 1) - 1);
+            badge.textContent = count;
+        }
+
+        if (task) {
+            task.bucketId = 1;
+            appendTaskToBoard(task);
+        }
+
+        showToast('Task restored to To-Do', 'success');
+
+        const remaining = document.querySelectorAll('#trashList .trash-item');
+        if (remaining.length === 0) {
+            const listContainer = document.getElementById('trashList');
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="empty-list-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 16px;">Trash is empty.</p>';
+            }
+        }
+    } catch (err) {
+        console.error('Error restoring task:', err);
+        showToast('Failed to restore task', 'error');
+    }
+}
+
+/**
+ * Permanently deletes a trashed task from the database.
+ */
+async function deleteForeverTrashTask(taskId) {
+    try {
+        await deleteTask(taskId);
+        const item = document.getElementById(`trash-item-${taskId}`);
+        if (item) item.remove();
+
+        const badge = document.getElementById('trashCountBadge');
+        if (badge) {
+            const count = Math.max(0, (parseInt(badge.textContent, 10) || 1) - 1);
+            badge.textContent = count;
+        }
+
+        showToast('Task permanently deleted.', 'info');
+
+        const remaining = document.querySelectorAll('#trashList .trash-item');
+        if (remaining.length === 0) {
+            const listContainer = document.getElementById('trashList');
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="empty-list-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 16px;">Trash is empty.</p>';
+            }
+        }
+    } catch (err) {
+        console.error('Error deleting task permanently:', err);
+        showToast('Failed to delete task', 'error');
+    }
+}
+
+// ----------------- Archive Folders Modal Logic -----------------
+
+let currentArchiveFolders = [];
+
+/**
+ * Opens the Archive Folders modal and loads folder contents.
+ */
+function openArchiveModal() {
+    const modal = document.getElementById('archiveModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadArchiveFolders();
+    }
+}
+
+/**
+ * Closes the Archive Folders modal.
+ */
+function closeArchiveModal() {
+    const modal = document.getElementById('archiveModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Fetches archive folders from the backend and renders them.
+ */
+async function loadArchiveFolders() {
+    const listContainer = document.getElementById('archiveList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '<p class="modal-loading-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 12px;">Loading archive folders...</p>';
+
+    const projectName = getCurrentProjectName();
+    try {
+        const response = await fetch(`/api/workspace/archives?projectName=${encodeURIComponent(projectName)}`);
+        if (!response.ok) {
+            throw new Error('Failed to load archive folders.');
+        }
+        currentArchiveFolders = await response.json();
+        renderArchiveFolders(currentArchiveFolders);
+
+        // Synchronize dropdown options in #editTaskBucketId
+        currentArchiveFolders.forEach(folder => {
+            addArchiveFolderOption(folder.position, folder.name);
+        });
+    } catch (err) {
+        console.error('Error loading archive folders:', err);
+        listContainer.innerHTML = '<p class="modal-error-note" style="color: #ef4444; font-size: 0.9rem; text-align: center; padding: 12px;">Could not load archive folders.</p>';
+    }
+}
+
+/**
+ * Renders the archive folders with their tasks.
+ */
+function renderArchiveFolders(folders) {
+    const listContainer = document.getElementById('archiveList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (!folders || folders.length === 0) {
+        listContainer.innerHTML = '<p class="empty-list-note" style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 16px;">No archive folders found. Create one above!</p>';
+        return;
+    }
+
+    folders.forEach(folder => {
+        const folderCard = document.createElement('div');
+        folderCard.className = 'archive-folder-card';
+        folderCard.id = `archive-folder-${folder.bucketId}`;
+
+        const header = document.createElement('div');
+        header.className = 'archive-folder-header';
+
+        const titleSpan = document.createElement('div');
+        titleSpan.className = 'archive-folder-title';
+        titleSpan.innerHTML = `📁 <strong>${escapeHtml(folder.name)}</strong> <span style="font-size: 0.82rem; font-weight: normal; color: #64748b;">(${folder.tasks.length} task${folder.tasks.length === 1 ? '' : 's'})</span>`;
+
+        header.appendChild(titleSpan);
+
+        if (folder.tasks.length === 0) {
+            const delFolderBtn = document.createElement('button');
+            delFolderBtn.type = 'button';
+            delFolderBtn.className = 'btn-danger';
+            delFolderBtn.style.padding = '4px 10px';
+            delFolderBtn.style.fontSize = '0.8rem';
+            delFolderBtn.textContent = 'Delete Folder';
+            delFolderBtn.onclick = () => handleDeleteArchiveFolder(folder.bucketId, folder.name);
+            header.appendChild(delFolderBtn);
+        }
+
+        folderCard.appendChild(header);
+
+        if (folder.tasks.length > 0) {
+            const taskList = document.createElement('div');
+            taskList.className = 'archive-task-list';
+
+            folder.tasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.className = 'archive-task-item';
+                taskItem.id = `archive-task-${task.taskId}`;
+
+                const taskInfo = document.createElement('div');
+                taskInfo.className = 'archive-task-info';
+                taskInfo.innerHTML = `<strong>#${task.taskId}</strong> ${escapeHtml(task.title)} <small style="color: #64748b;">(${escapeHtml(task.assignee || 'Unassigned')})</small>`;
+
+                const actions = document.createElement('div');
+                actions.className = 'archive-task-actions';
+
+                const restoreBtn = document.createElement('button');
+                restoreBtn.type = 'button';
+                restoreBtn.className = 'btn-restore';
+                restoreBtn.textContent = '↩️ Restore to Board';
+                restoreBtn.onclick = () => restoreArchiveTask(task.taskId, folder.bucketId);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn-delete-forever';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.onclick = () => deleteArchiveTask(task.taskId, folder.bucketId);
+
+                actions.appendChild(restoreBtn);
+                actions.appendChild(deleteBtn);
+
+                taskItem.appendChild(taskInfo);
+                taskItem.appendChild(actions);
+                taskList.appendChild(taskItem);
+            });
+
+            folderCard.appendChild(taskList);
+        } else {
+            const emptyNote = document.createElement('p');
+            emptyNote.style.margin = '8px 0 0 0';
+            emptyNote.style.fontSize = '0.85rem';
+            emptyNote.style.color = '#94a3b8';
+            emptyNote.textContent = 'Folder is empty.';
+            folderCard.appendChild(emptyNote);
+        }
+
+        listContainer.appendChild(folderCard);
+    });
+}
+
+/**
+ * Handles creation of a new archive folder from the inline form.
+ */
+async function handleCreateArchiveFolder(event) {
+    event.preventDefault();
+    const input = document.getElementById('newArchiveFolderName');
+    const folderName = input.value.trim();
+    if (!folderName) return;
+
+    const projectName = getCurrentProjectName();
+    try {
+        const response = await fetch('/api/workspace/archives', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                projectName: projectName,
+                name: folderName
+            })
+        });
+
+        if (!response.ok) {
+            const msg = await response.text();
+            throw new Error(msg || 'Failed to create archive folder.');
+        }
+
+        const created = await response.json();
+        addArchiveFolderOption(created.position, created.name);
+        input.value = '';
+        showToast('Archive folder created successfully!', 'success');
+        loadArchiveFolders();
+    } catch (err) {
+        console.error('Error creating archive folder:', err);
+        showToast(err.message || 'Failed to create archive folder', 'error');
+    }
+}
+
+/**
+ * Deletes an empty archive folder.
+ */
+async function handleDeleteArchiveFolder(bucketId, folderName) {
+    if (!confirm(`Are you sure you want to delete folder "${folderName}"?`)) {
+        return;
+    }
+
+    const projectName = getCurrentProjectName();
+    try {
+        const response = await fetch(`/api/workspace/archives/${bucketId}?projectName=${encodeURIComponent(projectName)}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const msg = await response.text();
+            throw new Error(msg || 'Failed to delete archive folder.');
+        }
+
+        showToast('Archive folder deleted.', 'info');
+        loadArchiveFolders();
+    } catch (err) {
+        console.error('Error deleting archive folder:', err);
+        showToast(err.message || 'Failed to delete archive folder', 'error');
+    }
+}
+
+/**
+ * Restores an archived task back to the To-Do column (Bucket 1).
+ */
+async function restoreArchiveTask(taskId, folderBucketId) {
+    let taskToRestore = null;
+    for (const folder of currentArchiveFolders) {
+        const found = folder.tasks.find(t => t.taskId === taskId);
+        if (found) {
+            taskToRestore = found;
+            break;
+        }
+    }
+
+    try {
+        await persistTaskMove(taskId, 1, 0, true);
+        if (taskToRestore) {
+            taskToRestore.bucketId = 1;
+            appendTaskToBoard(taskToRestore);
+        }
+        showToast('Task restored to To-Do', 'success');
+        loadArchiveFolders();
+    } catch (err) {
+        console.error('Error restoring archived task:', err);
+        showToast('Failed to restore task', 'error');
+    }
+}
+
+/**
+ * Deletes an archived task permanently.
+ */
+async function deleteArchiveTask(taskId, folderBucketId) {
+    try {
+        await deleteTask(taskId);
+        showToast('Task deleted permanently.', 'info');
+        loadArchiveFolders();
+    } catch (err) {
+        console.error('Error deleting archived task:', err);
+        showToast('Failed to delete task', 'error');
+    }
+}
+
+// ----------------- Archive Picker Modal Logic (Drag-and-Drop) -----------------
+
+/**
+ * Opens the lightweight picker modal when dragging and dropping onto the Archive dropzone.
+ */
+async function openArchivePickerModal(taskId) {
+    const modal = document.getElementById('archivePickerModal');
+    if (!modal) return;
+
+    document.getElementById('pickerTaskId').value = taskId;
+    const newNameInput = document.getElementById('pickerNewFolderName');
+    if (newNameInput) newNameInput.value = '';
+
+    const select = document.getElementById('pickerFolderSelect');
+    if (select) {
+        select.innerHTML = '<option value="" disabled selected>Loading folders...</option>';
+    }
+
+    modal.style.display = 'flex';
+
+    const projectName = getCurrentProjectName();
+    try {
+        const response = await fetch(`/api/workspace/archives?projectName=${encodeURIComponent(projectName)}`);
+        if (response.ok) {
+            currentArchiveFolders = await response.json();
+            if (select) {
+                select.innerHTML = '';
+                if (currentArchiveFolders.length === 0) {
+                    select.innerHTML = '<option value="" disabled selected>No existing archive folders</option>';
+                } else {
+                    currentArchiveFolders.forEach(folder => {
+                        const opt = document.createElement('option');
+                        opt.value = folder.position;
+                        opt.setAttribute('data-name', folder.name);
+                        opt.textContent = `📁 ${folder.name} (${folder.tasks.length} tasks)`;
+                        select.appendChild(opt);
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error loading folders for picker:', err);
+    }
+}
+
+/**
+ * Closes the Archive Picker modal.
+ */
+function closeArchivePickerModal() {
+    const modal = document.getElementById('archivePickerModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    const taskIdInput = document.getElementById('pickerTaskId');
+    if (taskIdInput) taskIdInput.value = '';
+}
+
+/**
+ * Confirms archiving the task into an existing or newly created folder.
+ */
+async function confirmArchivePicker() {
+    const taskId = document.getElementById('pickerTaskId').value;
+    const newNameInput = document.getElementById('pickerNewFolderName');
+    const newName = newNameInput ? newNameInput.value.trim() : '';
+    const projectName = getCurrentProjectName();
+
+    if (!taskId) {
+        closeArchivePickerModal();
+        return;
+    }
+
+    try {
+        let targetPosition;
+        let folderName;
+
+        if (newName) {
+            // Create new folder and archive
+            const createResp = await fetch('/api/workspace/archives', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    projectName: projectName,
+                    name: newName
+                })
+            });
+
+            if (!createResp.ok) {
+                const msg = await createResp.text();
+                throw new Error(msg || 'Failed to create archive folder.');
+            }
+
+            const createdFolder = await createResp.json();
+            targetPosition = createdFolder.position;
+            folderName = createdFolder.name;
+            addArchiveFolderOption(createdFolder.position, createdFolder.name);
+        } else {
+            const select = document.getElementById('pickerFolderSelect');
+            if (!select || !select.value) {
+                showToast('Please select a folder or enter a new folder name', 'error');
+                return;
+            }
+            targetPosition = parseInt(select.value, 10);
+            const opt = select.options[select.selectedIndex];
+            folderName = opt.getAttribute('data-name') || opt.text;
+        }
+
+        await persistTaskMove(taskId, targetPosition, 0, true);
+
+        // Remove card from active board
+        const taskElement = document.getElementById(taskId) ||
+                            document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            taskElement.remove();
+        }
+
+        closeArchivePickerModal();
+        showToast(`Task moved to Archive: ${folderName}`, 'info');
+    } catch (err) {
+        console.error('Error archiving task:', err);
+        showToast(err.message || 'Failed to archive task', 'error');
+    }
+}
+
 // Global window registrations & modal backdrop click handlers
 if (typeof window !== 'undefined') {
     window.addEventListener('click', (event) => {
-        const modal = document.getElementById('taskEditModal');
-        if (event.target === modal) {
+        const editModal = document.getElementById('taskEditModal');
+        if (event.target === editModal) {
             closeEditTaskModal();
+        }
+        const trashModal = document.getElementById('trashModal');
+        if (event.target === trashModal) {
+            closeTrashModal();
+        }
+        const archiveModal = document.getElementById('archiveModal');
+        if (event.target === archiveModal) {
+            closeArchiveModal();
+        }
+        const pickerModal = document.getElementById('archivePickerModal');
+        if (event.target === pickerModal) {
+            closeArchivePickerModal();
         }
     });
 
     window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-            const modal = document.getElementById('taskEditModal');
-            if (modal && modal.style.display !== 'none') {
+            const editModal = document.getElementById('taskEditModal');
+            if (editModal && editModal.style.display !== 'none') {
                 closeEditTaskModal();
+            }
+            const trashModal = document.getElementById('trashModal');
+            if (trashModal && trashModal.style.display !== 'none') {
+                closeTrashModal();
+            }
+            const archiveModal = document.getElementById('archiveModal');
+            if (archiveModal && archiveModal.style.display !== 'none') {
+                closeArchiveModal();
+            }
+            const pickerModal = document.getElementById('archivePickerModal');
+            if (pickerModal && pickerModal.style.display !== 'none') {
+                closeArchivePickerModal();
             }
         }
     });
@@ -477,4 +1116,23 @@ if (typeof window !== 'undefined') {
     window.appendTaskToBoard = appendTaskToBoard;
     window.handleCreateTaskSubmit = handleCreateTaskSubmit;
     window.persistTaskMove = persistTaskMove;
+    window.addArchiveFolderOption = addArchiveFolderOption;
+
+    window.openTrashModal = openTrashModal;
+    window.closeTrashModal = closeTrashModal;
+    window.loadTrashTasks = loadTrashTasks;
+    window.restoreTrashTask = restoreTrashTask;
+    window.deleteForeverTrashTask = deleteForeverTrashTask;
+
+    window.openArchiveModal = openArchiveModal;
+    window.closeArchiveModal = closeArchiveModal;
+    window.loadArchiveFolders = loadArchiveFolders;
+    window.handleCreateArchiveFolder = handleCreateArchiveFolder;
+    window.handleDeleteArchiveFolder = handleDeleteArchiveFolder;
+    window.restoreArchiveTask = restoreArchiveTask;
+    window.deleteArchiveTask = deleteArchiveTask;
+
+    window.openArchivePickerModal = openArchivePickerModal;
+    window.closeArchivePickerModal = closeArchivePickerModal;
+    window.confirmArchivePicker = confirmArchivePicker;
 }

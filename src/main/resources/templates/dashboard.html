@@ -12,7 +12,14 @@
     <!-- Navigation Header -->
     <div data-th-replace="~{fragments :: top-nav}"></div>
     
-    <h2 data-th-text="${projectName} + ' Board'">Project Board</h2>
+    <input type="hidden" id="currentProjectName" data-th-value="${projectName}" />
+    <div class="board-header-row">
+        <h2 data-th-text="${projectName} + ' Board'">Project Board</h2>
+        <div class="board-header-actions">
+            <button type="button" class="btn-board-action" onclick="openArchiveModal()">📁 Archives</button>
+            <button type="button" class="btn-board-action" onclick="openTrashModal()">🗑️ Trash (<span id="trashCountBadge" data-th-text="${trashCount}">0</span>)</button>
+        </div>
+    </div>
     
     <!-- Create Task Form Bar -->
     <div class="create-task-bar">
@@ -82,9 +89,14 @@
         </div>
     </div>
 
-    <!-- Trash bucket uses a custom drop function to delete the element -->
-    <div class="trash" data-bucket-id="4" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
-        🗑️ Drop tasks here to Archive / Delete
+    <!-- Side-by-side Drop Zones: Trash (7-day retention) and Archive Dropzone -->
+    <div class="drop-zones-row">
+        <div class="trash" data-bucket-id="4" ondragover="allowDrop(event)" ondrop="dropToTrash(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+            🗑️ Drop tasks here to Trash (Kept for 7 days)
+        </div>
+        <div class="archive-dropzone" ondragover="allowDrop(event)" ondrop="dropToArchive(event)" ondragenter="this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+            📁 Drop tasks here to Archive into Folder
+        </div>
     </div>
 
     <!-- Task Edit & Delete Modal -->
@@ -121,7 +133,8 @@
                         <option value="1">To-Do</option>
                         <option value="2">In Progress</option>
                         <option value="3">Done</option>
-                        <option value="4">Trash / Archive</option>
+                        <option value="4">Trash - 7-Day Retention</option>
+                        <option data-th-each="folder : ${archiveFolders}" data-th-value="${folder.position}" data-th-text="'📁 Archive: ' + ${folder.name}"></option>
                     </select>
                 </div>
 
@@ -133,6 +146,77 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Trash Retention Modal -->
+    <div id="trashModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card admin-modal-card">
+            <div class="modal-header">
+                <h3>🗑️ Trashed Tasks (7-Day Retention)</h3>
+                <button type="button" class="modal-close-btn" onclick="closeTrashModal()">&times;</button>
+            </div>
+            <p class="modal-subtitle" style="margin: 4px 0 16px 0; color: #64748b; font-size: 0.9rem;">
+                Tasks moved to Trash are automatically purged after 7 days. You can restore them to To-Do or delete them permanently.
+            </p>
+            <div id="trashList" class="trash-list">
+                <!-- Populated via loadTrashTasks() -->
+            </div>
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="btn-secondary" onclick="closeTrashModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archive Folders Modal -->
+    <div id="archiveModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card admin-modal-card">
+            <div class="modal-header">
+                <h3>📁 Archive Folders</h3>
+                <button type="button" class="modal-close-btn" onclick="closeArchiveModal()">&times;</button>
+            </div>
+            <p class="modal-subtitle" style="margin: 4px 0 16px 0; color: #64748b; font-size: 0.9rem;">
+                Organize completed work into sprint or milestone archive folders.
+            </p>
+            <form id="createArchiveFolderForm" onsubmit="handleCreateArchiveFolder(event)" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="newArchiveFolderName" placeholder="New folder name (e.g. Sprint 1)..." required style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.9rem;" />
+                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; white-space: nowrap;">+ Create Folder</button>
+            </form>
+            <div id="archiveList" class="archive-list">
+                <!-- Populated via loadArchiveFolders() -->
+            </div>
+            <div class="modal-actions" style="margin-top: 16px;">
+                <button type="button" class="btn-secondary" onclick="closeArchiveModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archive Picker Modal -->
+    <div id="archivePickerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>📁 Archive Task</h3>
+                <button type="button" class="modal-close-btn" onclick="closeArchivePickerModal()">&times;</button>
+            </div>
+            <input type="hidden" id="pickerTaskId" />
+            <p class="modal-subtitle" style="margin: 4px 0 16px 0; color: #64748b; font-size: 0.9rem;">
+                Select an existing archive folder or enter a new folder name to archive this task.
+            </p>
+            <div class="form-group">
+                <label for="pickerFolderSelect">Select Existing Folder</label>
+                <select id="pickerFolderSelect">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <div style="text-align: center; margin: 12px 0; color: #64748b; font-size: 0.85rem; font-weight: 600;">— OR CREATE NEW —</div>
+            <div class="form-group">
+                <label for="pickerNewFolderName">New Folder Name</label>
+                <input type="text" id="pickerNewFolderName" placeholder="e.g. Sprint 2" />
+            </div>
+            <div class="modal-actions" style="margin-top: 18px;">
+                <button type="button" class="btn-secondary" onclick="closeArchivePickerModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="confirmArchivePicker()">Archive Task</button>
+            </div>
         </div>
     </div>
 </body>

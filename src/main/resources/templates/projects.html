@@ -96,6 +96,18 @@
                 </div>
             </div>
 
+            <!-- Archive Folders Section -->
+            <div class="admin-section">
+                <h4 class="admin-section-title">Archive Folders</h4>
+                <div class="add-archive-folder-form" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="adminNewArchiveName" placeholder="New archive folder name (e.g. Sprint 1)" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.9rem;" />
+                    <button type="button" class="btn-primary" onclick="handleAddAdminArchiveFolder()" style="padding: 8px 14px; font-size: 0.85rem; white-space: nowrap;">+ Add Folder</button>
+                </div>
+                <div id="adminArchiveFolderList" class="admin-archive-folder-list">
+                    <!-- Populated dynamically via loadProjectArchives() -->
+                </div>
+            </div>
+
             <!-- Danger Zone / Delete Section -->
             <div class="admin-section-danger">
                 <div class="danger-zone-content">
@@ -226,6 +238,7 @@
             modal.style.display = 'flex';
 
             await loadProjectMembers(projectId);
+            await loadProjectArchives(projectName);
         }
 
         /**
@@ -243,6 +256,10 @@
             if (memberInput) memberInput.value = '';
             const memberList = document.getElementById('adminMemberList');
             if (memberList) memberList.innerHTML = '';
+            const archiveInput = document.getElementById('adminNewArchiveName');
+            if (archiveInput) archiveInput.value = '';
+            const archiveList = document.getElementById('adminArchiveFolderList');
+            if (archiveList) archiveList.innerHTML = '';
         }
 
         /**
@@ -331,6 +348,100 @@
             } catch (error) {
                 console.error('Error removing project member:', error);
                 showProjectToast(error.message || 'Failed to remove member', 'error');
+            }
+        }
+
+        /**
+         * Loads archive folders for a project workspace.
+         */
+        async function loadProjectArchives(projectName) {
+            const listContainer = document.getElementById('adminArchiveFolderList');
+            if (!listContainer) return;
+            listContainer.innerHTML = '<p class="empty-members-note">Loading archive folders...</p>';
+
+            try {
+                const archives = await getWorkspaceArchives(projectName);
+                renderProjectArchives(archives, projectName);
+            } catch (error) {
+                console.error('Error loading project archives:', error);
+                listContainer.innerHTML = '<p class="empty-members-note" style="color: #ef4444;">Failed to load archive folders.</p>';
+                showProjectToast(error.message || 'Could not load archive folders', 'error');
+            }
+        }
+
+        /**
+         * Renders archive folders list into the modal.
+         */
+        function renderProjectArchives(archives, projectName) {
+            const listContainer = document.getElementById('adminArchiveFolderList');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            if (!archives || archives.length === 0) {
+                listContainer.innerHTML = '<p class="empty-members-note">No archive folders found.</p>';
+                return;
+            }
+
+            archives.forEach(folder => {
+                const item = document.createElement('div');
+                item.className = 'archive-folder-row';
+
+                const badge = document.createElement('span');
+                badge.className = 'member-badge';
+                badge.innerHTML = `<span class="member-icon">📁</span> <span>${escapeHtml(folder.name)}</span> <small style="color: #64748b; margin-left: 6px;">(${folder.tasks.length} task${folder.tasks.length === 1 ? '' : 's'})</small>`;
+
+                item.appendChild(badge);
+
+                if (folder.tasks.length === 0) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'btn-remove-member';
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.onclick = function() {
+                        handleDeleteAdminArchiveFolder(projectName, folder.bucketId);
+                    };
+                    item.appendChild(deleteBtn);
+                }
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        /**
+         * Handles adding an archive folder from the workspace admin modal.
+         */
+        async function handleAddAdminArchiveFolder() {
+            const projectName = document.getElementById('adminProjectName').value.trim();
+            const input = document.getElementById('adminNewArchiveName');
+            const folderName = input.value.trim();
+
+            if (!folderName) {
+                showProjectToast('Please enter a folder name', 'error');
+                return;
+            }
+
+            try {
+                await createWorkspaceArchive(projectName, folderName);
+                input.value = '';
+                await loadProjectArchives(projectName);
+                showProjectToast('Archive folder created successfully!', 'success');
+            } catch (error) {
+                console.error('Error creating archive folder:', error);
+                showProjectToast(error.message || 'Failed to create archive folder', 'error');
+            }
+        }
+
+        /**
+         * Handles deleting an empty archive folder from the workspace admin modal.
+         */
+        async function handleDeleteAdminArchiveFolder(projectName, bucketId) {
+            try {
+                await deleteWorkspaceArchive(projectName, bucketId);
+                await loadProjectArchives(projectName);
+                showProjectToast('Archive folder deleted.', 'info');
+            } catch (error) {
+                console.error('Error deleting archive folder:', error);
+                showProjectToast(error.message || 'Failed to delete archive folder', 'error');
             }
         }
 

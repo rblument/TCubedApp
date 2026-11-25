@@ -16,6 +16,8 @@ public class Task {
     private int bucketId;
     private String assignee;
     private String projectName;
+    private String updatedAt;
+    private Integer daysRemaining;
 
     /**
      * Default constructor for {@code Task}.
@@ -181,6 +183,42 @@ public class Task {
      */
     public void setProjectName(String projectName) {
         this.projectName = projectName;
+    }
+
+    /**
+     * Retrieves the formatted last update timestamp of the task.
+     *
+     * @return the update timestamp string
+     */
+    public String getUpdatedAt() {
+        return updatedAt;
+    }
+
+    /**
+     * Sets the last update timestamp of the task.
+     *
+     * @param updatedAt the update timestamp string to set
+     */
+    public void setUpdatedAt(String updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    /**
+     * Retrieves the remaining days before trash purge.
+     *
+     * @return the remaining retention days
+     */
+    public Integer getDaysRemaining() {
+        return daysRemaining;
+    }
+
+    /**
+     * Sets the remaining days before trash purge.
+     *
+     * @param daysRemaining the remaining retention days
+     */
+    public void setDaysRemaining(Integer daysRemaining) {
+        this.daysRemaining = daysRemaining;
     }
 
     /**

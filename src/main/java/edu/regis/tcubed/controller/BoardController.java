@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller for handling dashboard and task board view operations,
@@ -69,13 +70,19 @@ public class BoardController {
         }
         model.addAttribute("projectMembers", projectMembers);
 
+        List<Map<String, Object>> archiveFolders = List.of();
+        int trashCount = 0;
         try {
             List<Task> dbTasks = taskRepository.getTasksByProjectName(activeProject);
             model.addAttribute("tasks", dbTasks);
+            archiveFolders = taskRepository.getArchiveFoldersWithTasks(activeProject);
+            trashCount = taskRepository.getTrashedTasksByProjectName(activeProject).size();
         } catch (SQLException e) {
             model.addAttribute("error", "Database warning: using fallback tasks (" + e.getMessage() + ")");
             model.addAttribute("tasks", mockTasks);
         }
+        model.addAttribute("archiveFolders", archiveFolders);
+        model.addAttribute("trashCount", trashCount);
 
         return "dashboard";
     }

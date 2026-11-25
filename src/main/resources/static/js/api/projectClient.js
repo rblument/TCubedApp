@@ -182,6 +182,64 @@ async function removeProjectMember(projectId, memberId) {
     return response.json();
 }
 
+/**
+ * Retrieves archive folders with tasks for a workspace.
+ *
+ * @param {string} projectName the project name
+ * @returns {Promise<Array>} list of archive folder objects
+ */
+async function getWorkspaceArchives(projectName) {
+    const response = await fetch(`/api/workspace/archives?projectName=${encodeURIComponent(projectName)}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to retrieve archive folders: ${response.status}`);
+    }
+    return response.json();
+}
+
+/**
+ * Creates a new archive folder for a workspace.
+ *
+ * @param {string} projectName the project name
+ * @param {string} folderName the new folder name
+ * @returns {Promise<Object>} the created archive folder
+ */
+async function createWorkspaceArchive(projectName, folderName) {
+    const response = await fetch('/api/workspace/archives', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            projectName: projectName,
+            name: folderName
+        })
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to create archive folder: ${response.status}`);
+    }
+    return response.json();
+}
+
+/**
+ * Deletes an empty archive folder for a workspace.
+ *
+ * @param {string} projectName the project name
+ * @param {number|string} bucketId the archive bucket ID
+ * @returns {Promise<boolean>} true upon successful deletion
+ */
+async function deleteWorkspaceArchive(projectName, bucketId) {
+    const response = await fetch(`/api/workspace/archives/${encodeURIComponent(bucketId)}?projectName=${encodeURIComponent(projectName)}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to delete archive folder: ${response.status}`);
+    }
+    return true;
+}
+
 if (typeof window !== 'undefined') {
     window.showProjectToast = showProjectToast;
     if (typeof window.showToast !== 'function') {
@@ -194,4 +252,7 @@ if (typeof window !== 'undefined') {
     window.getProjectMembers = getProjectMembers;
     window.addProjectMember = addProjectMember;
     window.removeProjectMember = removeProjectMember;
+    window.getWorkspaceArchives = getWorkspaceArchives;
+    window.createWorkspaceArchive = createWorkspaceArchive;
+    window.deleteWorkspaceArchive = deleteWorkspaceArchive;
 }
