@@ -36,13 +36,31 @@ body { font-family: sans-serif; padding: 20px; }
         /* User Profile Dropdown Styling */
         .user-profile { position: relative; display: inline-block; }
         .dropbtn { 
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             background-color: #3b82f6; 
             color: white; 
-            padding: 8px 15px; 
+            padding: 6px 14px; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer; 
             font-weight: bold;
+        }
+        .avatar-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: #172554;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1;
+            text-transform: uppercase;
+            flex-shrink: 0;
         }
         .dropdown-content { 
             display: none; 
@@ -871,4 +889,110 @@ body { font-family: sans-serif; padding: 20px; }
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+/* Account Settings & Avatar Badges */
+.avatar-badge-lg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background-color: #172554;
+    color: #ffffff;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(23, 37, 84, 0.2);
+    flex-shrink: 0;
+}
+
+.settings-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 10px 20px 40px;
+}
+
+.settings-header-card {
+    background: white;
+    border-radius: 8px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #e2e8f0;
+}
+
+.settings-header-info h2 {
+    margin: 0 0 4px 0;
+    color: #172554;
+    font-size: 1.5rem;
+}
+
+.settings-header-email {
+    margin: 0 0 8px 0;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.user-role-badge {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+.settings-card {
+    background: white;
+    border-radius: 8px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+}
+
+.settings-card-header {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.settings-card-header h3 {
+    margin: 0 0 6px 0;
+    color: #172554;
+    font-size: 1.2rem;
+}
+
+.settings-card-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
+.readonly-input {
+    background-color: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+    border-color: #cbd5e1;
+}
+
+.form-helper-text {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 2px;
 }

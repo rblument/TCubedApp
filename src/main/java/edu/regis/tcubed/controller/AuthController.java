@@ -72,6 +72,7 @@ public class AuthController {
                 // Use the Account object's getters to set up the session
                 session.setAttribute("username", loggedInUser.getFirstName());
                 session.setAttribute("userId", loggedInUser.getUserId());
+                session.setAttribute("userInitials", loggedInUser.getInitials());
                 return "redirect:/my-tasks";
             } else {
                 model.addAttribute("error", "Invalid Credentials");
