@@ -13,10 +13,11 @@
         <div class="user-profile">
             <!-- Dynamically reads the session, falls back to 'Guest' if null -->
             <button class="dropbtn">
-                👤 <span data-th-text="${session.username != null ? session.username : 'Guest'}"></span> ▼
+                <span class="avatar-badge" data-th-text="${session.userInitials != null ? session.userInitials : 'G'}"></span>
+                <span data-th-text="${session.username != null ? session.username : 'Guest'}"></span> ▼
             </button>
             <div class="dropdown-content">
-                <a href="#">⚙️ Settings</a>
+                <a data-th-href="@{/settings}">⚙️ Settings</a>
                 <a data-th-href="@{/logout}">🚪 Logout</a> 
             </div>
         </div>

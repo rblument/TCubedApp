@@ -22,6 +22,23 @@ To maintain consistency across frontend and backend development, the team has ag
 
 ## 📝 Changelog
 
+### [Sprint 5] - Dynamic Assignee Selection, Account Settings, & Archive/Trash Lifecycle
+
+#### Added
+* **Dynamic Project-Member Assignee Dropdowns (`ProjectRepository.java`, `ProjectApiController.java`, `BoardController.java`, `dashboard.html`, `my-tasks.html`, `boardClient.js`):**
+  * Added `ProjectRepository.getProjectMemberAccountsByProjectName` and `GET /api/projects/members/by-name` to supply authenticated project member accounts without exposing passwords or security answers.
+  * Replaced free-text assignee inputs in task creation and edit modals with dynamic `<select>` dropdowns populated strictly from `PROJECT_MEMBER`, eliminating invalid assignee entries prior to submission.
+* **Account Settings & Initials Avatar Badges (`Account.java`, `AccountRepository.java`, `AccountController.java`, `AuthController.java`, `WebConfig.java`, `fragments.html`, `settings.html`, `style.css`):**
+  * Built a dedicated `/settings` management view secured by `AuthInterceptor`, allowing users to update profile names, student status, security questions/answers, and SHA-256 hashed passwords while keeping primary-key `UserId` emails read-only.
+  * Added `Account.getInitials()` and session-synced circular initials avatar badges (e.g., `TM`, `OC`) in the top navigation bar and settings header with zero database schema modifications.
+* **7-Day Trash Retention & Named Archive Folders (`ArchiveApiController.java`, `TaskRepository.java`, `TaskStatus.java`, `Task.java`, `dashboard.html`, `projects.html`, `boardClient.js`, `boardDragDrop.js`, `projectClient.js`, `style.css`):**
+  * Added `ArchiveApiController` (`/api/workspace/trash`, `/api/workspace/archives`) and `TaskStatus.ARCHIVED` (mapping `BUCKET.Position >= 5`) to manage named archive folders (`Sprint 1`, `Sprint 2`, etc.) separately from active workflow columns (`1–3`) and Trash (`4`).
+  * Implemented automatic 7-day Trash expiration (`purgeExpiredTrashTasks`) using `TASK.UpdatedAt`, a live Trash counter badge, and interactive modals for viewing, restoring, or permanently deleting trashed and archived tasks from both `/dashboard` and `/projects`.
+  * Split the board footer into side-by-side Trash (7-day retention) and Archive Folder drop zones with an inline folder picker modal.
+
+#### Fixed
+* **Unassigned Task Default Override (`BoardController.java`, `boardClient.js`, `dashboard.html`, `my-tasks.html`):** Removed legacy fallback logic in `POST /api/tasks` that overwrote explicitly selected `"Unassigned"` tasks with the active session `userId`, ensuring `NULL` persists accurately and renders consistently as `Unassigned`.
+
 ### [Sprint 4] - Project Workspace Administration (UC-2), Task CRUD Modal, DB Seeding, & Automated Testing
 
 #### Added

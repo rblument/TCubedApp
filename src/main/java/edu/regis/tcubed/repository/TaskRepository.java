@@ -5,7 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Repository for managing Task persistence and board hierarchy queries in the database.
@@ -140,6 +142,7 @@ public class TaskRepository {
 
         try (Connection conn = connectionManager.getConnection()) {
             ensureBoardBucketsExist(conn, projectName);
+            purgeExpiredTrashTasks(conn, projectName);
 
             String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, p.Name AS ProjectName " +
                          "FROM TASK t " +
@@ -354,7 +357,7 @@ public class TaskRepository {
                 targetBucketId = newLogicalBucketPosition;
             }
 
-            String sql = "UPDATE TASK SET BucketId = ?, Position = ? WHERE TaskId = ?";
+            String sql = "UPDATE TASK SET BucketId = ?, Position = ?, UpdatedAt = CURRENT_TIMESTAMP WHERE TaskId = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, targetBucketId);
                 stmt.setInt(2, newPosition);
@@ -626,6 +629,271 @@ public class TaskRepository {
             }
 
             return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Purges tasks in Trash (Bucket Position = 4) that have not been updated in over 7 days.
+     *
+     * @param projectName the active project name
+     * @return number of purged tasks
+     * @throws SQLException if a database error occurs
+     */
+    public int purgeExpiredTrashTasks(String projectName) throws SQLException {
+        try (Connection conn = connectionManager.getConnection()) {
+            return purgeExpiredTrashTasks(conn, projectName);
+        }
+    }
+
+    private int purgeExpiredTrashTasks(Connection conn, String projectName) throws SQLException {
+        String sql = "DELETE t FROM TASK t " +
+                     "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+                     "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                     "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                     "WHERE p.Name = ? AND bu.Position = 4 AND t.UpdatedAt < DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, projectName);
+            return stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Fetches all trashed tasks for a project (Bucket Position = 4), purging expired tasks first.
+     *
+     * @param projectName the active project name
+     * @return list of trashed tasks with days remaining countdown
+     * @throws SQLException if a database error occurs
+     */
+    public List<Task> getTrashedTasksByProjectName(String projectName) throws SQLException {
+        purgeExpiredTrashTasks(projectName);
+
+        List<Task> tasks = new ArrayList<>();
+        try (Connection conn = connectionManager.getConnection()) {
+            ensureBoardBucketsExist(conn, projectName);
+
+            String sql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, " +
+                         "p.Name AS ProjectName, DATE_FORMAT(t.UpdatedAt, '%Y-%m-%d %H:%i') AS UpdatedAtStr, " +
+                         "GREATEST(0, 7 - DATEDIFF(NOW(), t.UpdatedAt)) AS DaysRemaining " +
+                         "FROM TASK t " +
+                         "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+                         "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                         "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                         "WHERE p.Name = ? AND bu.Position = 4 " +
+                         "ORDER BY t.UpdatedAt DESC";
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, projectName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        Task task = new Task(
+                            rs.getInt("TaskId"),
+                            rs.getString("Title"),
+                            rs.getString("Body"),
+                            rs.getInt("Position"),
+                            rs.getInt("LogicalBucketId"),
+                            rs.getString("Assignee")
+                        );
+                        task.setProjectName(rs.getString("ProjectName"));
+                        task.setUpdatedAt(rs.getString("UpdatedAtStr"));
+                        task.setDaysRemaining(rs.getInt("DaysRemaining"));
+                        tasks.add(task);
+                    }
+                }
+            }
+        }
+        return tasks;
+    }
+
+    /**
+     * Retrieves all archive folders (Bucket Position >= 5) for a project, including their tasks.
+     *
+     * @param projectName the active project name
+     * @return list of archive folder maps containing folder metadata and tasks
+     * @throws SQLException if a database error occurs
+     */
+    public List<Map<String, Object>> getArchiveFoldersWithTasks(String projectName) throws SQLException {
+        List<Map<String, Object>> folders = new ArrayList<>();
+
+        try (Connection conn = connectionManager.getConnection()) {
+            ensureBoardBucketsExist(conn, projectName);
+
+            String folderSql = "SELECT bu.BucketId, bu.Name, bu.Position " +
+                               "FROM BUCKET bu " +
+                               "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                               "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                               "WHERE p.Name = ? AND bu.Position >= 5 " +
+                               "ORDER BY bu.Position ASC";
+
+            String taskSql = "SELECT t.TaskId, t.Title, t.Body, t.Position, bu.Position AS LogicalBucketId, t.Assignee, " +
+                             "p.Name AS ProjectName, DATE_FORMAT(t.UpdatedAt, '%Y-%m-%d %H:%i') AS UpdatedAtStr " +
+                             "FROM TASK t " +
+                             "JOIN BUCKET bu ON t.BucketId = bu.BucketId " +
+                             "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                             "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                             "WHERE bu.BucketId = ? " +
+                             "ORDER BY t.Position ASC, t.TaskId ASC";
+
+            try (PreparedStatement folderStmt = conn.prepareStatement(folderSql)) {
+                folderStmt.setString(1, projectName);
+                try (ResultSet rsFolder = folderStmt.executeQuery()) {
+                    while (rsFolder.next()) {
+                        int bucketId = rsFolder.getInt("BucketId");
+                        String name = rsFolder.getString("Name");
+                        int position = rsFolder.getInt("Position");
+
+                        List<Task> tasks = new ArrayList<>();
+                        try (PreparedStatement taskStmt = conn.prepareStatement(taskSql)) {
+                            taskStmt.setInt(1, bucketId);
+                            try (ResultSet rsTask = taskStmt.executeQuery()) {
+                                while (rsTask.next()) {
+                                    Task task = new Task(
+                                        rsTask.getInt("TaskId"),
+                                        rsTask.getString("Title"),
+                                        rsTask.getString("Body"),
+                                        rsTask.getInt("Position"),
+                                        rsTask.getInt("LogicalBucketId"),
+                                        rsTask.getString("Assignee")
+                                    );
+                                    task.setProjectName(rsTask.getString("ProjectName"));
+                                    task.setUpdatedAt(rsTask.getString("UpdatedAtStr"));
+                                    tasks.add(task);
+                                }
+                            }
+                        }
+
+                        Map<String, Object> folderMap = new LinkedHashMap<>();
+                        folderMap.put("bucketId", bucketId);
+                        folderMap.put("name", name);
+                        folderMap.put("position", position);
+                        folderMap.put("tasks", tasks);
+                        folders.add(folderMap);
+                    }
+                }
+            }
+        }
+        return folders;
+    }
+
+    /**
+     * Creates a new archive folder (Position >= 5) for a project.
+     *
+     * @param projectName the active project name
+     * @param folderName  the name for the new archive folder
+     * @return map with bucketId, name, position, and empty tasks list
+     * @throws IllegalArgumentException if folderName is blank or already exists
+     * @throws SQLException if a database error occurs
+     */
+    public Map<String, Object> createArchiveFolder(String projectName, String folderName) throws SQLException {
+        if (folderName == null || folderName.trim().isBlank()) {
+            throw new IllegalArgumentException("Folder name cannot be blank.");
+        }
+        String cleanName = folderName.trim();
+
+        try (Connection conn = connectionManager.getConnection()) {
+            ensureBoardBucketsExist(conn, projectName);
+
+            int boardId = -1;
+            String boardSql = "SELECT bo.BoardId FROM BOARD bo JOIN PROJECT p ON bo.ProjectId = p.ProjectId WHERE p.Name = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(boardSql)) {
+                stmt.setString(1, projectName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        boardId = rs.getInt("BoardId");
+                    }
+                }
+            }
+            if (boardId == -1) {
+                throw new SQLException("Could not resolve board for project: " + projectName);
+            }
+
+            String dupSql = "SELECT BucketId FROM BUCKET WHERE BoardId = ? AND LOWER(Name) = LOWER(?)";
+            try (PreparedStatement stmt = conn.prepareStatement(dupSql)) {
+                stmt.setInt(1, boardId);
+                stmt.setString(2, cleanName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        throw new IllegalArgumentException("An archive folder with that name already exists.");
+                    }
+                }
+            }
+
+            int maxExistingPosition = 4;
+            String maxPosSql = "SELECT COALESCE(MAX(Position), 4) AS MaxPos FROM BUCKET WHERE BoardId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(maxPosSql)) {
+                stmt.setInt(1, boardId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        maxExistingPosition = rs.getInt("MaxPos");
+                    }
+                }
+            }
+            int nextPosition = Math.max(5, maxExistingPosition + 1);
+
+            int bucketId = -1;
+            String insertSql = "INSERT INTO BUCKET (Name, Position, BoardId) VALUES (?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setString(1, cleanName);
+                stmt.setInt(2, nextPosition);
+                stmt.setInt(3, boardId);
+                stmt.executeUpdate();
+                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        bucketId = rs.getInt(1);
+                    }
+                }
+            }
+
+            Map<String, Object> folderMap = new LinkedHashMap<>();
+            folderMap.put("bucketId", bucketId);
+            folderMap.put("name", cleanName);
+            folderMap.put("position", nextPosition);
+            folderMap.put("tasks", new ArrayList<Task>());
+            return folderMap;
+        }
+    }
+
+    /**
+     * Deletes an archive folder (Position >= 5) if it contains no tasks.
+     *
+     * @param projectName the active project name
+     * @param bucketId    the bucket ID of the archive folder
+     * @return true if deleted, false if not found
+     * @throws IllegalStateException if the folder contains tasks
+     * @throws SQLException if a database error occurs
+     */
+    public boolean deleteArchiveFolder(String projectName, int bucketId) throws SQLException {
+        try (Connection conn = connectionManager.getConnection()) {
+            ensureBoardBucketsExist(conn, projectName);
+
+            String verifySql = "SELECT bu.BucketId FROM BUCKET bu " +
+                               "JOIN BOARD bo ON bu.BoardId = bo.BoardId " +
+                               "JOIN PROJECT p ON bo.ProjectId = p.ProjectId " +
+                               "WHERE p.Name = ? AND bu.BucketId = ? AND bu.Position >= 5";
+            try (PreparedStatement stmt = conn.prepareStatement(verifySql)) {
+                stmt.setString(1, projectName);
+                stmt.setInt(2, bucketId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (!rs.next()) {
+                        return false;
+                    }
+                }
+            }
+
+            String countSql = "SELECT COUNT(*) AS TaskCount FROM TASK WHERE BucketId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(countSql)) {
+                stmt.setInt(1, bucketId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next() && rs.getInt("TaskCount") > 0) {
+                        throw new IllegalStateException("Folder is not empty. Restore or delete its tasks before removing the folder.");
+                    }
+                }
+            }
+
+            String deleteSql = "DELETE FROM BUCKET WHERE BucketId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(deleteSql)) {
+                stmt.setInt(1, bucketId);
+                return stmt.executeUpdate() > 0;
+            }
         }
     }
 

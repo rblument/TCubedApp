@@ -94,6 +94,28 @@ public class Account {
         isStudent = student;
     }
 
+    /**
+     * Computes uppercase initials from the user's first name and last name.
+     * Handles null, empty, or whitespace strings safely by falling back to the
+     * first letter of whichever name is present, or "?" if both are blank or null.
+     *
+     * @return uppercase initials (e.g., "TM", "OC", or "?")
+     */
+    public String getInitials() {
+        String first = (firstName != null) ? firstName.trim() : "";
+        String last = (lastName != null) ? lastName.trim() : "";
+
+        StringBuilder sb = new StringBuilder();
+        if (!first.isEmpty()) {
+            sb.append(Character.toUpperCase(first.charAt(0)));
+        }
+        if (!last.isEmpty()) {
+            sb.append(Character.toUpperCase(last.charAt(0)));
+        }
+
+        return sb.length() > 0 ? sb.toString() : "?";
+    }
+
     @Override
     public String toString() {
         return "Account{" +

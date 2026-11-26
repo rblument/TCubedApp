@@ -26,7 +26,12 @@ public enum TaskStatus {
     /**
      * Task is archived or deleted.
      */
-    TRASH(4, "Trash");
+    TRASH(4, "Trash"),
+
+    /**
+     * Task is in a named archive folder.
+     */
+    ARCHIVED(5, "Archived");
 
     private final int bucketId;
     private final String displayName;
@@ -62,12 +67,16 @@ public enum TaskStatus {
 
     /**
      * Resolves a {@code TaskStatus} from a given bucket ID.
-     * Defaults to {@link #TODO} if no matching status is found.
+     * Any {@code id >= 5} returns {@link #ARCHIVED} to prevent archived tasks
+     * from falling back to {@link #TODO}. Defaults to {@link #TODO} if no matching status is found.
      *
      * @param id the database bucket ID to match
      * @return the matching {@code TaskStatus}, or {@link #TODO} by default
      */
     public static TaskStatus fromBucketId(int id) {
+        if (id >= 5) {
+            return ARCHIVED;
+        }
         for (TaskStatus status : values()) {
             if (status.bucketId == id) {
                 return status;

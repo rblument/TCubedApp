@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings - T³ Tracker</title>
+    <link rel="stylesheet" data-th-href="@{/css/style.css}">
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <div data-th-replace="~{fragments :: top-nav}"></div>
+
+    <div class="settings-container">
+        <!-- Flash Feedback Alerts -->
+        <div data-th-if="${success}" class="alert alert-success" data-th-text="${success}"></div>
+        <div data-th-if="${error}" class="alert alert-error" data-th-text="${error}"></div>
+
+        <!-- Profile Summary Header Card -->
+        <div class="settings-header-card" data-th-if="${account != null}">
+            <div class="avatar-badge-lg" data-th-text="${account.initials}">TM</div>
+            <div class="settings-header-info">
+                <h2 data-th-text="${account.firstName + ' ' + account.lastName}">User Name</h2>
+                <p class="settings-header-email" data-th-text="${account.userId}">user@regis.edu</p>
+                <span class="user-role-badge" data-th-text="${account.student ? 'Student Account' : 'Standard Account'}">Student Account</span>
+            </div>
+        </div>
+
+        <div class="settings-grid" data-th-if="${account != null}">
+            <!-- Card 1 — Profile & Security Details -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <h3>Profile &amp; Security Details</h3>
+                    <p>Manage your account name, security recovery question, and student status.</p>
+                </div>
+                <form action="/settings/profile" data-th-action="@{/settings/profile}" method="post" class="auth-form">
+                    <div class="form-group">
+                        <label for="userId">User ID / Email</label>
+                        <input type="text" id="userId" name="userId" data-th-value="${account.userId}" disabled class="readonly-input" />
+                        <span class="form-helper-text">Login email cannot be changed.</span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name</label>
+                            <input type="text" id="firstName" name="firstName" data-th-value="${account.firstName}" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name</label>
+                            <input type="text" id="lastName" name="lastName" data-th-value="${account.lastName}" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="question">Security Question</label>
+                        <select id="question" name="question" required>
+                            <option value="0" data-th-selected="${account.question == 0}">What city were you born in?</option>
+                            <option value="1" data-th-selected="${account.question == 1}">What was the name of your first pet?</option>
+                            <option value="2" data-th-selected="${account.question == 2}">What was the model of your first car?</option>
+                            <option value="3" data-th-selected="${account.question == 3}">What is your favorite course at Regis?</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="answer">Security Answer</label>
+                        <input type="text" id="answer" name="answer" data-th-value="${account.answer}" required />
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="isStudent" name="isStudent" value="true" data-th-checked="${account.student}" />
+                        <label for="isStudent">I am currently a student</label>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Save Profile Changes</button>
+                </form>
+            </div>
+
+            <!-- Card 2 — Change Password -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <h3>Change Password</h3>
+                    <p>Ensure your account remains protected with a secure password of at least 6 characters.</p>
+                </div>
+                <form action="/settings/password" data-th-action="@{/settings/password}" method="post" class="auth-form">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <input type="password" id="currentPassword" name="currentPassword" placeholder="Enter current password" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" name="newPassword" placeholder="Min. 6 characters" minlength="6" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter new password" minlength="6" required />
+                    </div>
+
+                    <button type="submit" class="btn-primary">Update Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

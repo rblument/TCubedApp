@@ -1,5 +1,6 @@
 package edu.regis.tcubed.repository;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Project;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -111,5 +112,53 @@ class ProjectRepositoryTest {
                 () -> repository.getProjectsByUserId("sample-user"));
 
         assertEquals("Database unavailable", thrown.getMessage());
+    }
+
+    @Test
+    void getProjectMemberAccountsByProjectNameReturnsPopulatedAccounts() throws SQLException {
+        when(results.next()).thenReturn(true, true, false);
+        when(results.getString("UserId")).thenReturn("alice@example.com", "bob@example.com");
+        when(results.getString("FirstName")).thenReturn("Alice", "Bob");
+        when(results.getString("LastName")).thenReturn("Smith", "Jones");
+        when(results.getBoolean("IsStudent")).thenReturn(true, false);
+
+        List<Account> members = repository.getProjectMemberAccountsByProjectName("Capstone");
+
+        assertEquals(2, members.size());
+        Account m1 = members.get(0);
+        assertEquals("alice@example.com", m1.getUserId());
+        assertEquals("Alice", m1.getFirstName());
+        assertEquals("Smith", m1.getLastName());
+        assertTrue(m1.isStudent());
+        assertNull(m1.getPassword());
+        assertNull(m1.getAnswer());
+
+        Account m2 = members.get(1);
+        assertEquals("bob@example.com", m2.getUserId());
+        assertEquals("Bob", m2.getFirstName());
+        assertEquals("Jones", m2.getLastName());
+        assertFalse(m2.isStudent());
+        assertNull(m2.getPassword());
+        assertNull(m2.getAnswer());
+
+        verify(statement).setString(1, "Capstone");
+        verify(statement).executeQuery();
+    }
+
+    @Test
+    void getProjectMemberAccountsByProjectNameReturnsEmptyWhenNullOrBlank() throws SQLException {
+        assertTrue(repository.getProjectMemberAccountsByProjectName(null).isEmpty());
+        assertTrue(repository.getProjectMemberAccountsByProjectName("   ").isEmpty());
+        verifyNoInteractions(manager);
+    }
+
+    @Test
+    void getProjectMemberAccountsByProjectNameReturnsEmptyWhenNoRowsMatch() throws SQLException {
+        when(results.next()).thenReturn(false);
+
+        List<Account> members = repository.getProjectMemberAccountsByProjectName("NonExistent");
+
+        assertTrue(members.isEmpty());
+        verify(statement).setString(1, "NonExistent");
     }
 }

@@ -1,6 +1,8 @@
 package edu.regis.tcubed.controller;
 
+import edu.regis.tcubed.model.Account;
 import edu.regis.tcubed.model.Task;
+import edu.regis.tcubed.repository.ProjectRepository;
 import edu.regis.tcubed.repository.TaskRepository;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller for handling dashboard and task board view operations,
@@ -24,6 +27,7 @@ import java.util.List;
 public class BoardController {
 
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
 
     private final List<Task> mockTasks = new ArrayList<>(List.of(
         new Task(101, "Draft ER Diagram", "Design the MySQL schema", 1, 1, "Dylan"),
@@ -33,8 +37,9 @@ public class BoardController {
     ));
 
     @Autowired
-    public BoardController(TaskRepository taskRepository) {
+    public BoardController(TaskRepository taskRepository, ProjectRepository projectRepository) {
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
     }
 
     /**
@@ -54,13 +59,30 @@ public class BoardController {
         session.setAttribute("activeProjectId", activeProject);
         model.addAttribute("projectName", activeProject);
 
+        List<Account> projectMembers;
+        try {
+            projectMembers = projectRepository.getProjectMemberAccountsByProjectName(activeProject);
+            if (projectMembers == null) {
+                projectMembers = List.of();
+            }
+        } catch (SQLException e) {
+            projectMembers = List.of();
+        }
+        model.addAttribute("projectMembers", projectMembers);
+
+        List<Map<String, Object>> archiveFolders = List.of();
+        int trashCount = 0;
         try {
             List<Task> dbTasks = taskRepository.getTasksByProjectName(activeProject);
             model.addAttribute("tasks", dbTasks);
+            archiveFolders = taskRepository.getArchiveFoldersWithTasks(activeProject);
+            trashCount = taskRepository.getTrashedTasksByProjectName(activeProject).size();
         } catch (SQLException e) {
             model.addAttribute("error", "Database warning: using fallback tasks (" + e.getMessage() + ")");
             model.addAttribute("tasks", mockTasks);
         }
+        model.addAttribute("archiveFolders", archiveFolders);
+        model.addAttribute("trashCount", trashCount);
 
         return "dashboard";
     }
@@ -115,8 +137,7 @@ public class BoardController {
         }
 
         if (newTask.getAssignee() == null || newTask.getAssignee().isBlank()) {
-            String sessionUserId = (String) session.getAttribute("userId");
-            newTask.setAssignee(sessionUserId != null && !sessionUserId.isBlank() ? sessionUserId : null);
+            newTask.setAssignee(null);
         }
 
         String activeProject = (String) session.getAttribute("activeProjectId");

@@ -106,6 +106,83 @@ public class AccountRepository {
     }
 
     /**
+     * Retrieves an account by its unique user ID without returning the sensitive password hash.
+     *
+     * @param userId the user ID / email of the account to look up
+     * @return the populated {@link Account} with a {@code null} password, or {@code null} if not found
+     * @throws SQLException if a database access error occurs
+     */
+    public Account findByUserId(String userId) throws SQLException {
+        try (Connection conn = connectionManager.getConnection()) {
+            String sql = "SELECT UserId, FirstName, LastName, Question, Answer, IsStudent FROM ACCOUNT WHERE UserId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, userId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return new Account(
+                            rs.getString("UserId"),
+                            null,
+                            rs.getString("FirstName"),
+                            rs.getString("LastName"),
+                            rs.getInt("Question"),
+                            rs.getString("Answer"),
+                            rs.getBoolean("IsStudent")
+                        );
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Updates profile and security question details for an existing user account.
+     *
+     * @param userId    the unique user ID / email identifying the account
+     * @param firstName the updated first name
+     * @param lastName  the updated last name
+     * @param question  the index of the selected security question
+     * @param answer    the updated answer to the security question
+     * @param isStudent flag indicating whether the user is a student
+     * @return {@code true} if the profile was successfully updated; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
+     */
+    public boolean updateProfile(String userId, String firstName, String lastName, int question, String answer, boolean isStudent) throws SQLException {
+        try (Connection conn = connectionManager.getConnection()) {
+            String sql = "UPDATE ACCOUNT SET FirstName = ?, LastName = ?, Question = ?, Answer = ?, IsStudent = ? WHERE UserId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, firstName);
+                stmt.setString(2, lastName);
+                stmt.setInt(3, question);
+                stmt.setString(4, answer);
+                stmt.setBoolean(5, isStudent);
+                stmt.setString(6, userId);
+                return stmt.executeUpdate() > 0;
+            }
+        }
+    }
+
+    /**
+     * Hashes the plaintext password and updates the user's password record in the database.
+     *
+     * @param userId         the unique user ID / email identifying the account
+     * @param newRawPassword the new plaintext password to hash and persist
+     * @return {@code true} if the password was successfully updated; {@code false} otherwise
+     * @throws SQLException if a database access error occurs
+     */
+    public boolean updatePassword(String userId, String newRawPassword) throws SQLException {
+        String hashedPassword = hashPassword(newRawPassword);
+        try (Connection conn = connectionManager.getConnection()) {
+            String sql = "UPDATE ACCOUNT SET Password = ? WHERE UserId = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, hashedPassword);
+                stmt.setString(2, userId);
+                return stmt.executeUpdate() > 0;
+            }
+        }
+    }
+
+    /**
      * Encodes a plaintext password using SHA-256 in accordance with database specifications.
      *
      * @param password the raw plaintext password

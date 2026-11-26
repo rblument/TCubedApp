@@ -31,17 +31,33 @@
             }
         }
 
-        // Deletes the task when dropped in the trash
+        // Moves the task to Trash with 7-day retention
         function dropToTrash(ev) {
             ev.preventDefault();
             var taskId = ev.dataTransfer.getData("text");
             var draggedElement = document.getElementById(taskId);
             
             if (draggedElement) {
-                draggedElement.remove(); // Removes the HTML element completely
-                persistTaskMove(taskId, 4, 0);
+                draggedElement.remove(); // Removes the HTML element completely from the active board
+                persistTaskMove(taskId, 4, 0, true);
+                var badge = document.getElementById('trashCountBadge');
+                if (badge) {
+                    var current = parseInt(badge.textContent, 10) || 0;
+                    badge.textContent = current + 1;
+                }
+                showToast('Task moved to Trash (kept for 7 days)', 'info');
             }
             ev.target.classList.remove('drag-over'); // Resets the hover color
+        }
+
+        // Opens Archive Picker modal without removing the card until confirmed
+        function dropToArchive(ev) {
+            ev.preventDefault();
+            var taskId = ev.dataTransfer.getData("text");
+            ev.target.classList.remove('drag-over');
+            if (typeof openArchivePickerModal === 'function') {
+                openArchivePickerModal(taskId);
+            }
         }
 
 
